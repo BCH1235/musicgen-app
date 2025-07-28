@@ -22,13 +22,15 @@ import {
   Share,
   Home,
   LibraryMusic,
-  VolumeUp
+  VolumeUp,
+  BookmarkBorder
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import { useMusicContext } from '../context/MusicContext';
 import { GENRE_OPTIONS } from '../components/common/GenreSelector';
 import { MOOD_OPTIONS } from '../components/common/MoodSelector';
+import AudioWaveform from '../components/common/AudioWaveform';
 
 const ResultPage = () => {
   const navigate = useNavigate();
@@ -42,6 +44,22 @@ const ResultPage = () => {
   // Context에서 결과 데이터 가져오기
   const { generatedMusic, convertedMusic } = state.result;
   const musicData = generatedMusic || convertedMusic;
+  
+  // 변환 결과인지 생성 결과인지 구분
+  const isConversion = !!convertedMusic;
+
+  // 검은색 배경에 에메랄드 테마
+  const colors = {
+    background: '#0A0A0A',         // 검은색 배경
+    cardBg: '#1A1A1A',            // 어두운 카드 배경
+    primary: '#50E3C2',           // 에메랄드 (Emerald)
+    secondary: '#40D9B8',         // 연한 에메랄드
+    accent: '#2DD4BF',            // 터콰이즈 (Teal)
+    text: '#FFFFFF',              // 흰색 텍스트
+    textLight: '#CCCCCC',         // 연한 회색 텍스트
+    border: '#333333',            // 어두운 테두리
+    shadow: 'rgba(80, 227, 194, 0.3)' // 에메랄드 그림자
+  };
 
   // 음악 데이터가 없는 경우 처리
   if (!musicData) {
@@ -132,138 +150,151 @@ const ResultPage = () => {
     });
   };
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* 성공 헤더 */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <CheckCircle 
-          sx={{ 
-            fontSize: '4rem', 
-            color: 'success.main', 
-            mb: 2 
-          }} 
-        />
-        <Typography 
-          variant="h3" 
-          component="h1"
-          sx={{ 
-            fontWeight: 700,
-            color: 'success.main',
-            mb: 1
-          }}
-        >
-          {generatedMusic ? '생성 완료!' : '변환 완료!'}
-        </Typography>
-        <Typography 
-          variant="h6" 
-          color="text.secondary"
-        >
-          AI가 {generatedMusic ? '새로운 음악을 생성' : '음악을 변환'}했습니다
-        </Typography>
-      </Box>
+  const handleSaveToLibrary = () => {
+    actions.addToLibrary(musicData);
+    actions.addNotification({
+      type: 'success',
+      message: '라이브러리에 추가되었습니다.'
+    });
+  };
 
-      <Grid container spacing={4}>
-        {/* 메인 컨텐츠 */}
-        <Grid item xs={12} lg={8}>
-          {/* 음악 플레이어 */}
-          <Paper 
-            elevation={0}
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: colors.background }}>
+      <Container maxWidth="lg" sx={{ py: 6 }}>
+        {/* 페이지 헤더 - 생성/변환에 따라 다른 텍스트 */}
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <CheckCircle sx={{ fontSize: '4rem', color: colors.accent, mb: 2 }} />
+          <Typography 
+            variant="h3" 
+            component="h1"
             sx={{ 
-              p: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 3,
-              mb: 3,
-              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-              color: 'white'
+              fontWeight: 600, 
+              color: colors.text,
+              mb: 1,
+              letterSpacing: '-0.02em'
             }}
           >
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
-                🎵 {musicData.title}
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                {musicData.description || '음악이 성공적으로 생성되었습니다.'}
-              </Typography>
-            </Box>
+            {isConversion ? '음악 변환 완료' : '음악 생성 완료'}
+          </Typography>
+          <Typography variant="h6" color={colors.textLight} sx={{ fontWeight: 400, opacity: 0.8 }}>
+            {isConversion ? '음악이 성공적으로 변환되었습니다' : '새로운 음악이 성공적으로 생성되었습니다'}
+          </Typography>
+        </Box>
 
-            {/* 재생 컨트롤 */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <IconButton 
-                onClick={handlePlayPause}
-                sx={{ 
-                  bgcolor: 'rgba(255,255,255,0.2)', 
-                  color: 'white',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                }}
-                size="large"
-              >
-                {isPlaying ? <Pause /> : <PlayArrow />}
-              </IconButton>
-              
-              <Box sx={{ flexGrow: 1 }}>
-                <Slider
-                  value={currentTime}
-                  onChange={handleTimeChange}
-                  min={0}
-                  max={duration}
-                  sx={{
-                    color: 'white',
-                    '& .MuiSlider-track': { bgcolor: 'white' },
-                    '& .MuiSlider-thumb': { 
-                      bgcolor: 'white',
-                      '&:hover': { boxShadow: '0px 0px 0px 8px rgba(255,255,255,0.16)' }
-                    }
-                  }}
+        <Grid container spacing={4}>
+          {/* 메인 콘텐츠 */}
+          <Grid item xs={12} lg={9}>
+            {/* 음악 플레이어 */}
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 4,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 2,
+                mb: 3,
+                bgcolor: colors.cardBg,
+                color: colors.text
+              }}
+            >
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h4" fontWeight={600} sx={{ mb: 1, color: colors.text }}>
+                  {musicData.title}
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.8, color: colors.textLight }}>
+                  {isConversion 
+                    ? `${musicData.originalFile}을(를) ${musicData.targetGenre} 스타일로 변환했습니다.`
+                    : '음악이 성공적으로 생성되었습니다.'
+                  }
+                </Typography>
+              </Box>
+
+              {/* 오디오 웨이브폼 */}
+              <Box sx={{ mb: 3 }}>
+                <AudioWaveform 
+                  isPlaying={isPlaying}
+                  progress={(currentTime / duration) * 100}
+                  height={100}
+                  barCount={80}
+                  color={colors.accent}
                 />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                    {formatTime(currentTime)}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                    {formatTime(duration)}
-                  </Typography>
+              </Box>
+
+              {/* 재생 컨트롤 */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <IconButton 
+                  onClick={handlePlayPause}
+                  sx={{ 
+                    bgcolor: colors.accent, 
+                    color: colors.background,
+                    '&:hover': { bgcolor: colors.text }
+                  }}
+                  size="large"
+                >
+                  {isPlaying ? <Pause /> : <PlayArrow />}
+                </IconButton>
+                
+                <Box sx={{ flexGrow: 1 }}>
+                  <Slider
+                    value={currentTime}
+                    onChange={handleTimeChange}
+                    min={0}
+                    max={duration}
+                    sx={{
+                      color: colors.accent,
+                      '& .MuiSlider-track': { bgcolor: colors.accent },
+                      '& .MuiSlider-thumb': { 
+                        bgcolor: colors.accent,
+                        '&:hover': { boxShadow: `0px 0px 0px 8px ${colors.shadow}` }
+                      }
+                    }}
+                  />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ opacity: 0.8, color: colors.textLight }}>
+                      {formatTime(currentTime)}
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.8, color: colors.textLight }}>
+                      {formatTime(duration)}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
+                  <VolumeUp sx={{ opacity: 0.8, color: colors.textLight }} />
+                  <Slider
+                    value={volume}
+                    onChange={handleVolumeChange}
+                    min={0}
+                    max={100}
+                    size="small"
+                    sx={{
+                      color: colors.accent,
+                      '& .MuiSlider-track': { bgcolor: colors.accent },
+                      '& .MuiSlider-thumb': { bgcolor: colors.accent }
+                    }}
+                  />
                 </Box>
               </Box>
+            </Paper>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
-                <VolumeUp sx={{ opacity: 0.8 }} />
-                <Slider
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  min={0}
-                  max={100}
-                  size="small"
-                  sx={{
-                    color: 'white',
-                    '& .MuiSlider-track': { bgcolor: 'white' },
-                    '& .MuiSlider-thumb': { bgcolor: 'white' }
-                  }}
-                />
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* 음악 정보 */}
-          <Paper 
-            elevation={0}
-            sx={{ 
-              p: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              🎼 음악 정보
-            </Typography>
-            
-            <Grid container spacing={3}>
-              {/* 장르 정보 */}
-              {(musicData.genres || [musicData.targetGenre]).filter(Boolean).length > 0 && (
+            {/* 음악 정보 - 변환/생성에 따라 다른 정보 표시 */}
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 4,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 2,
+                bgcolor: colors.cardBg
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 3, color: colors.text }}>
+                {isConversion ? '변환 정보' : '음악 정보'}
+              </Typography>
+              
+              <Grid container spacing={3}>
+                {/* 장르 정보 */}
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    장르
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, color: colors.textLight }}>
+                    {isConversion ? '변환된 장르' : '장르'}
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {(musicData.genres || [musicData.targetGenre]).filter(Boolean).map((genreId) => {
@@ -274,172 +305,229 @@ const ResultPage = () => {
                           label={genre.label}
                           size="small"
                           sx={{
-                            bgcolor: `${genre.color}20`,
-                            color: genre.color,
-                            border: `1px solid ${genre.color}40`
+                            bgcolor: colors.cardBg,
+                            color: colors.primary,
+                            border: `1px solid ${colors.primary}`,
+                            fontWeight: 600
                           }}
                         />
                       );
                     })}
                   </Box>
                 </Grid>
-              )}
 
-              {/* 분위기 정보 */}
-              {musicData.moods && musicData.moods.length > 0 && (
+                {/* 변환 강도 (변환일 때만) */}
+                {isConversion && musicData.intensity && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, color: colors.textLight }}>
+                      변환 강도
+                    </Typography>
+                    <Typography variant="body2" color={colors.text}>
+                      {musicData.intensity}/5
+                    </Typography>
+                  </Grid>
+                )}
+
+                {/* 분위기 정보 (생성일 때만) */}
+                {!isConversion && musicData.moods && musicData.moods.length > 0 && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, color: colors.textLight }}>
+                      분위기
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {musicData.moods.map((moodId) => {
+                        const mood = getMoodInfo(moodId);
+                        return (
+                          <Chip
+                            key={moodId}
+                            label={`${mood.emoji} ${mood.label}`}
+                            size="small"
+                            sx={{
+                              bgcolor: colors.cardBg,
+                              color: colors.primary,
+                              border: `1px solid ${colors.primary}`,
+                              fontWeight: 600
+                            }}
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Grid>
+                )}
+
+                {/* 추가 정보 */}
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    분위기
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, color: colors.textLight }}>
+                    길이
                   </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {musicData.moods.map((moodId) => {
-                      const mood = getMoodInfo(moodId);
-                      return (
-                        <Chip
-                          key={moodId}
-                          label={`${mood.emoji} ${mood.label}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      );
-                    })}
-                  </Box>
+                  <Typography variant="body2" color={colors.text}>
+                    {formatTime(musicData.duration || duration)}
+                  </Typography>
                 </Grid>
-              )}
 
-              {/* 추가 정보 */}
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  길이
-                </Typography>
-                <Typography variant="body2">
-                  {formatTime(musicData.duration || duration)}
-                </Typography>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, color: colors.textLight }}>
+                    생성 시간
+                  </Typography>
+                  <Typography variant="body2" color={colors.text}>
+                    {new Date(musicData.createdAt).toLocaleString('ko-KR')}
+                  </Typography>
+                </Grid>
               </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  생성 시간
-                </Typography>
-                <Typography variant="body2">
-                  {new Date(musicData.createdAt).toLocaleString('ko-KR')}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
-
-        {/* 사이드바 */}
-        <Grid item xs={12} lg={4}>
-          <Box sx={{ position: 'sticky', top: 24 }}>
-            {/* 액션 버튼들 */}
-            <Paper 
-              elevation={0}
-              sx={{ 
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                mb: 3
-              }}
-            >
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                🎬 액션
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<Download />}
-                  onClick={handleDownload}
-                  size="large"
-                  sx={{ 
-                    bgcolor: 'success.main',
-                    '&:hover': { bgcolor: 'success.dark' }
-                  }}
-                >
-                  다운로드
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={isFavorite ? <Favorite /> : <FavoriteBorder />}
-                  onClick={handleFavorite}
-                  color={isFavorite ? 'error' : 'primary'}
-                >
-                  {isFavorite ? '즐겨찾기 제거' : '즐겨찾기 추가'}
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<LibraryMusic />}
-                  onClick={handleAddToLibrary}
-                >
-                  라이브러리에 추가
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Share />}
-                  onClick={handleShare}
-                >
-                  공유하기
-                </Button>
-              </Box>
             </Paper>
+          </Grid>
 
-            {/* 추가 액션 */}
-            <Paper 
-              elevation={0}
-              sx={{ 
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2
-              }}
-            >
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                🔄 다음 단계
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Refresh />}
-                  onClick={handleRegenerate}
-                  color="secondary"
-                >
-                  다시 {generatedMusic ? '생성' : '변환'}하기
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<LibraryMusic />}
-                  onClick={() => navigate('/library')}
-                >
-                  라이브러리 보기
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Home />}
-                  onClick={() => navigate('/')}
-                >
-                  홈으로 돌아가기
-                </Button>
-              </Box>
-            </Paper>
-          </Box>
+          {/* 사이드바 - 버튼 텍스트도 구분 */}
+          <Grid item xs={12} lg={3}>
+            <Box sx={{ position: 'sticky', top: 24 }}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 4,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 2,
+                  bgcolor: colors.cardBg,
+                  minHeight: '600px',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 3,
+                  flex: 1
+                }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<BookmarkBorder />}
+                    onClick={handleSaveToLibrary}
+                    sx={{
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.text
+                      }
+                    }}
+                  >
+                    라이브러리에 저장
+                  </Button>
+                  
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Download />}
+                    onClick={handleDownload}
+                    sx={{
+                      color: colors.text,
+                      borderColor: colors.border,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        borderColor: colors.accent,
+                        color: colors.background
+                      }
+                    }}
+                  >
+                    다운로드
+                  </Button>
+                  
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Share />}
+                    onClick={handleShare}
+                    sx={{
+                      color: colors.text,
+                      borderColor: colors.border,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        borderColor: colors.accent,
+                        color: colors.background
+                      }
+                    }}
+                  >
+                    공유하기
+                  </Button>
+                  
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Refresh />}
+                    onClick={handleRegenerate}
+                    sx={{
+                      color: colors.text,
+                      borderColor: colors.border,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        borderColor: colors.accent,
+                        color: colors.background
+                      }
+                    }}
+                  >
+                    다시 {isConversion ? '변환' : '생성'}하기
+                  </Button>
+                  
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<LibraryMusic />}
+                    onClick={() => navigate('/library')}
+                    sx={{
+                      color: colors.text,
+                      borderColor: colors.border,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        borderColor: colors.accent,
+                        color: colors.background
+                      }
+                    }}
+                  >
+                    라이브러리 보기
+                  </Button>
+                  
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Home />}
+                    onClick={() => navigate('/')}
+                    sx={{
+                      color: colors.text,
+                      borderColor: colors.border,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 2,
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        borderColor: colors.accent,
+                        color: colors.background
+                      }
+                    }}
+                  >
+                    홈으로 돌아가기
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          </Grid>
         </Grid>
-      </Grid>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 

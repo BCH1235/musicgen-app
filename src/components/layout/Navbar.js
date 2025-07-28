@@ -7,16 +7,31 @@ import {
   Box,
   Container,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  IconButton
 } from '@mui/material';
 import { 
   MusicNote,
   AudioFile,
   Transform,
   LibraryMusic,
-  Settings
+  Settings,
+  Menu
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+
+// 검은색 배경에 에메랄드 테마
+const colors = {
+  background: '#0A0A0A',         // 검은색 배경
+  cardBg: '#1A1A1A',            // 어두운 카드 배경
+  primary: '#50E3C2',           // 에메랄드 (Emerald)
+  secondary: '#40D9B8',         // 연한 에메랄드
+  accent: '#2DD4BF',            // 터콰이즈 (Teal)
+  text: '#FFFFFF',              // 흰색 텍스트
+  textLight: '#CCCCCC',         // 연한 회색 텍스트
+  border: '#333333',            // 어두운 테두리
+  shadow: 'rgba(80, 227, 194, 0.3)' // 에메랄드 그림자
+};
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -61,9 +76,8 @@ const Navbar = () => {
       position="sticky" 
       elevation={0}
       sx={{
-        bgcolor: 'background.paper',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
+        bgcolor: colors.cardBg,
+        borderBottom: `1px solid ${colors.accent}`,
       }}
     >
       <Container maxWidth="xl">
@@ -83,24 +97,13 @@ const Navbar = () => {
             }}
             onClick={() => handleNavigation('/')}
           >
-            <AudioFile 
-              sx={{ 
-                color: 'primary.main', 
-                fontSize: { xs: '2rem', md: '2.5rem' },
-                mr: 1
-              }} 
-            />
             <Typography
               variant="h6"
               component="div"
               sx={{
-                fontWeight: 700,
-                color: 'text.primary',
-                fontSize: { xs: '1.2rem', md: '1.5rem' },
-                background: 'linear-gradient(45deg, #6366F1 30%, #8B5CF6 90%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                fontWeight: 600,
+                color: colors.text,
+                fontSize: { xs: '1.2rem', md: '1.5rem' }
               }}
             >
               AI Music Studio
@@ -108,49 +111,76 @@ const Navbar = () => {
           </Box>
 
           {/* 네비게이션 메뉴 */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                onClick={() => handleNavigation(item.path)}
-                startIcon={!isMobile ? item.icon : null}
-                sx={{
-                  minWidth: { xs: '80px', md: '120px' },
-                  height: '40px',
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontSize: { xs: '0.875rem', md: '1rem' },
-                  fontWeight: isActivePage(item.path) ? 600 : 400,
-                  color: isActivePage(item.path) ? 'primary.main' : 'text.secondary',
-                  bgcolor: isActivePage(item.path) ? 'primary.50' : 'transparent',
-                  border: isActivePage(item.path) ? '1px solid' : '1px solid transparent',
-                  borderColor: isActivePage(item.path) ? 'primary.200' : 'transparent',
-                  '&:hover': {
-                    bgcolor: isActivePage(item.path) ? 'primary.100' : 'action.hover',
-                    borderColor: isActivePage(item.path) ? 'primary.300' : 'action.hover',
-                  },
-                  transition: 'all 0.2s ease-in-out',
-                }}
-              >
-                {isMobile ? item.icon : item.label}
-              </Button>
-            ))}
-            
-            {/* 설정 버튼 (추후 확장용) */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
             <Button
+              onClick={() => handleNavigation('/generate')}
               sx={{
-                minWidth: '40px',
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                color: 'text.secondary',
+                color: colors.text,
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3,
+                py: 1,
+                borderRadius: 2,
                 '&:hover': {
-                  bgcolor: 'action.hover',
+                  bgcolor: colors.background,
+                  color: colors.accent
                 }
               }}
             >
-              <Settings />
+              음악 생성
             </Button>
+            
+            <Button
+              onClick={() => handleNavigation('/convert')}
+              sx={{
+                color: colors.text,
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                '&:hover': {
+                  bgcolor: colors.background,
+                  color: colors.accent
+                }
+              }}
+            >
+              음악 변환
+            </Button>
+            
+            <Button
+              onClick={() => handleNavigation('/library')}
+              sx={{
+                color: colors.text,
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                '&:hover': {
+                  bgcolor: colors.background,
+                  color: colors.accent
+                }
+              }}
+            >
+              라이브러리
+            </Button>
+          </Box>
+
+          {/* 모바일 메뉴 버튼 */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+            <IconButton
+              size="large"
+              sx={{
+                color: colors.text,
+                '&:hover': {
+                  bgcolor: colors.background,
+                  color: colors.accent
+                }
+              }}
+            >
+              <Menu />
+            </IconButton>
           </Box>
         </Toolbar>
       </Container>

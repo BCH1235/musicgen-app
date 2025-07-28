@@ -150,314 +150,369 @@ const Library = () => {
     });
   };
 
+  // 검은색 배경에 에메랄드 테마
+  const colors = {
+    background: '#0A0A0A',         // 검은색 배경
+    cardBg: '#1A1A1A',            // 어두운 카드 배경
+    primary: '#50E3C2',           // 에메랄드 (Emerald)
+    secondary: '#40D9B8',         // 연한 에메랄드
+    accent: '#2DD4BF',            // 터콰이즈 (Teal)
+    text: '#FFFFFF',              // 흰색 텍스트
+    textLight: '#CCCCCC',         // 연한 회색 텍스트
+    border: '#333333',            // 어두운 테두리
+    shadow: 'rgba(80, 227, 194, 0.3)' // 에메랄드 그림자
+  };
+
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* 페이지 헤더 */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <LibraryMusic 
-            sx={{ 
-              fontSize: '3rem', 
-              color: 'primary.main', 
-              mr: 2 
-            }} 
-          />
-          <Box>
-            <Typography 
-              variant="h3" 
-              component="h1"
-              sx={{ 
-                fontWeight: 700,
-                background: 'linear-gradient(45deg, #6366F1 30%, #8B5CF6 90%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1
-              }}
-            >
-              내 음악 라이브러리
-            </Typography>
-            <Typography 
-              variant="h6" 
-              color="text.secondary"
-            >
-              생성하고 변환한 음악들을 관리하세요
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* 검색 및 필터 */}
-      <Paper 
-        elevation={0}
-        sx={{ 
-          p: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 2,
-          mb: 4
-        }}
-      >
-        <Grid container spacing={3} alignItems="center">
-          {/* 검색 */}
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              placeholder="음악 제목으로 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
-            />
-          </Grid>
-
-          {/* 정렬 */}
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>정렬 기준</InputLabel>
-              <Select
-                value={sortBy}
-                label="정렬 기준"
-                onChange={(e) => setSortBy(e.target.value)}
-                startAdornment={<Sort sx={{ mr: 1, color: 'action.active' }} />}
-              >
-                <MenuItem value="date">최신순</MenuItem>
-                <MenuItem value="title">제목순</MenuItem>
-                <MenuItem value="duration">길이순</MenuItem>
-                <MenuItem value="favorites">즐겨찾기순</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* 필터 */}
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>타입 필터</InputLabel>
-              <Select
-                value={filterBy}
-                label="타입 필터"
-                onChange={(e) => setFilterBy(e.target.value)}
-                startAdornment={<FilterList sx={{ mr: 1, color: 'action.active' }} />}
-              >
-                <MenuItem value="all">전체</MenuItem>
-                <MenuItem value="generated">생성된 음악</MenuItem>
-                <MenuItem value="converted">변환된 음악</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* 통계 */}
-          <Grid item xs={12} md={2}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" color="primary.main" fontWeight={600}>
-                {filteredAndSortedMusic.length}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                총 음악 수
-              </Typography>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: colors.background,
+      backgroundImage: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)'
+    }}>
+      <Container maxWidth="xl" sx={{ py: 6 }}>
+        {/* 페이지 헤더 */}
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box sx={{
+              p: 3,
+              borderRadius: '50%',
+              bgcolor: colors.cardBg,
+              boxShadow: `0 8px 32px ${colors.shadow}`
+            }}>
+              <LibraryMusic sx={{ fontSize: '3rem', color: colors.accent }} />
             </Box>
-          </Grid>
-        </Grid>
-      </Paper>
+          </Box>
+          
+          <Typography 
+            variant="h3" 
+            component="h1"
+            sx={{ 
+              fontWeight: 700,
+              color: colors.text,
+              mb: 2
+            }}
+          >
+            내 음악 라이브러리
+          </Typography>
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              color: colors.textLight,
+              maxWidth: 600,
+              mx: 'auto',
+              lineHeight: 1.6
+            }}
+          >
+            생성하고 변환한 음악들을 관리하세요
+          </Typography>
+        </Box>
 
-      {/* 음악 목록 */}
-      {filteredAndSortedMusic.length === 0 ? (
+        {/* 검색 및 필터 */}
         <Paper 
           elevation={0}
           sx={{ 
-            p: 6,
-            textAlign: 'center',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 2
+            p: 4, 
+            mb: 4,
+            bgcolor: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 3,
+            boxShadow: `0 4px 20px ${colors.shadow}`
           }}
         >
-          <MusicNote 
-            sx={{ 
-              fontSize: '4rem', 
-              color: 'text.disabled', 
-              mb: 2 
-            }} 
-          />
-          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-            {searchQuery || filterBy !== 'all' 
-              ? '검색 조건에 맞는 음악이 없습니다'
-              : '아직 라이브러리에 음악이 없습니다'
-            }
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            음악을 생성하거나 변환하여 라이브러리를 채워보세요
-          </Typography>
-        </Paper>
-      ) : (
-        <Grid container spacing={3}>
-          {filteredAndSortedMusic.map((music) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={music.id}>
-              <Card 
-                elevation={0}
-                sx={{ 
-                  height: '100%',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-                  }
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="음악 제목으로 검색..."
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: colors.textLight }} />
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                {/* 카드 헤더 */}
-                <Box 
-                  sx={{ 
-                    p: 2,
-                    background: music.type === 'generated' 
-                      ? 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)'
-                      : 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
-                    color: 'white'
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    color: colors.text,
+                    '& fieldset': {
+                      borderColor: colors.border,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: colors.primary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: colors.primary,
+                    },
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: colors.textLight,
+                    opacity: 1,
+                  },
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color: colors.textLight, '&.Mui-focused': { color: colors.primary } }}>정렬 기준</InputLabel>
+                <Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        bgcolor: colors.cardBg,
+                        border: `1px solid ${colors.border}`,
+                        '& .MuiMenuItem-root': {
+                          color: colors.text,
+                          '&:hover': {
+                            bgcolor: colors.border,
+                          },
+                          '&.Mui-selected': {
+                            bgcolor: colors.primary,
+                            color: '#000000',
+                            '&:hover': {
+                              bgcolor: colors.primary,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    color: colors.text,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.border,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.primary,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.primary,
+                    },
                   }}
                 >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Typography variant="h6" fontWeight={600} sx={{ flexGrow: 1, fontSize: '1rem' }}>
+                  <MenuItem value="date">최신순</MenuItem>
+                  <MenuItem value="title">제목순</MenuItem>
+                  <MenuItem value="duration">재생시간</MenuItem>
+                  <MenuItem value="favorites">즐겨찾기</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color: colors.textLight, '&.Mui-focused': { color: colors.primary } }}>필터</InputLabel>
+                <Select
+                  value={filterBy}
+                  onChange={(e) => setFilterBy(e.target.value)}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        bgcolor: colors.cardBg,
+                        border: `1px solid ${colors.border}`,
+                        '& .MuiMenuItem-root': {
+                          color: colors.text,
+                          '&:hover': {
+                            bgcolor: colors.border,
+                          },
+                          '&.Mui-selected': {
+                            bgcolor: colors.primary,
+                            color: '#000000',
+                            '&:hover': {
+                              bgcolor: colors.primary,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    color: colors.text,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.border,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.primary,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.primary,
+                    },
+                  }}
+                >
+                  <MenuItem value="all">전체</MenuItem>
+                  <MenuItem value="generated">생성된 음악</MenuItem>
+                  <MenuItem value="converted">변환된 음악</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* 음악 리스트 */}
+        {filteredAndSortedMusic.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <MusicNote sx={{ fontSize: '4rem', color: colors.textLight, mb: 2 }} />
+            <Typography variant="h5" color={colors.textLight} sx={{ mb: 1 }}>
+              음악이 없습니다
+            </Typography>
+            <Typography variant="body1" color={colors.textLight}>
+              AI로 음악을 생성하거나 기존 음악을 변환해보세요!
+            </Typography>
+          </Box>
+        ) : (
+          <Grid container spacing={3}>
+            {filteredAndSortedMusic.map((music) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={music.id}>
+                <Card 
+                  elevation={0}
+                  sx={{ 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    bgcolor: colors.cardBg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 3,
+                    boxShadow: `0 4px 20px ${colors.shadow}`,
+                    transition: 'all 0.3s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 30px ${colors.shadow}`
+                    }
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                    {/* 타입 표시 */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                      <Chip 
+                        label={music.type === 'generated' ? '생성됨' : '변환됨'}
+                        size="small"
+                        sx={{
+                          bgcolor: music.type === 'generated' ? '#1A1A1A' : '#1A1A1A',
+                          color: music.type === 'generated' ? '#FFD700' : '#DAA520',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          border: `2px solid ${music.type === 'generated' ? '#FFD700' : '#DAA520'}`
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggleFavorite(music.id)}
+                        sx={{ 
+                          color: music.isFavorite ? colors.warning : colors.textLight,
+                          '&:hover': {
+                            bgcolor: music.isFavorite ? '#FFF8E1' : colors.border
+                          }
+                        }}
+                      >
+                        <Favorite />
+                      </IconButton>
+                    </Box>
+
+                    {/* 제목 */}
+                    <Typography 
+                      variant="h6" 
+                      component="h3"
+                      sx={{ 
+                        fontWeight: 600,
+                        color: colors.text,
+                        mb: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {music.title}
                     </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleToggleFavorite(music.id)}
-                      sx={{ 
-                        color: music.isFavorite ? '#FFD700' : 'rgba(255,255,255,0.7)',
-                        '&:hover': { color: '#FFD700' }
-                      }}
-                    >
-                      <Favorite fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  
-                  <Chip
-                    label={music.type === 'generated' ? '생성됨' : '변환됨'}
-                    size="small"
-                    sx={{
-                      bgcolor: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      mt: 1
-                    }}
-                  />
-                </Box>
 
-                <CardContent sx={{ flexGrow: 1 }}>
-                  {/* 장르 표시 */}
-                  {(music.genres || [music.targetGenre]).filter(Boolean).length > 0 && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                        장르
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(music.genres || [music.targetGenre]).filter(Boolean).map((genreId) => {
-                          const genre = getGenreInfo(genreId);
-                          return (
-                            <Chip
-                              key={genreId}
-                              label={genre.label}
-                              size="small"
-                              sx={{
-                                bgcolor: `${genre.color}20`,
-                                color: genre.color,
-                                fontSize: '0.75rem'
-                              }}
-                            />
-                          );
-                        })}
-                      </Box>
+                    {/* 장르/분위기 태그 */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                      {music.genres && music.genres.map((genre) => {
+                        const genreInfo = getGenreInfo(genre);
+                        return (
+                          <Chip
+                            key={genre}
+                            label={genreInfo.label}
+                            size="small"
+                            sx={{
+                              bgcolor: colors.border,
+                              color: colors.text,
+                              fontSize: '0.75rem'
+                            }}
+                          />
+                        );
+                      })}
+                      {music.targetGenre && (
+                        <Chip
+                          label={getGenreInfo(music.targetGenre).label}
+                          size="small"
+                          sx={{
+                            bgcolor: colors.border,
+                            color: colors.text,
+                            fontSize: '0.75rem'
+                          }}
+                        />
+                      )}
                     </Box>
-                  )}
 
-                  {/* 분위기 표시 */}
-                  {music.moods && music.moods.length > 0 && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                        분위기
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                        {music.moods.join(', ')}
-                      </Typography>
-                    </Box>
-                  )}
-
-                  {/* 음악 정보 */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      길이
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>
+                    {/* 재생시간 */}
+                    <Typography variant="body2" color={colors.textLight}>
                       {formatTime(music.duration)}
                     </Typography>
-                  </Box>
+                  </CardContent>
 
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      생성일
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {new Date(music.createdAt).toLocaleDateString('ko-KR')}
-                    </Typography>
-                  </Box>
-                </CardContent>
-
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
-                    <IconButton
+                  <CardActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                      startIcon={<PlayArrow />}
                       onClick={() => handlePlay(music)}
-                      sx={{ 
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                        '&:hover': { bgcolor: 'primary.dark' }
+                      sx={{
+                        color: colors.primary,
+                        '&:hover': {
+                          bgcolor: '#F3F4FF'
+                        }
                       }}
-                      size="small"
                     >
-                      <PlayArrow />
-                    </IconButton>
-                    
-                    <IconButton
+                      재생
+                    </Button>
+                    <Button
+                      startIcon={<Download />}
                       onClick={() => handleDownload(music)}
-                      sx={{ 
-                        bgcolor: 'success.main',
-                        color: 'white',
-                        '&:hover': { bgcolor: 'success.dark' }
+                      sx={{
+                        color: colors.accent,
+                        '&:hover': {
+                          bgcolor: '#F0FDFC'
+                        }
                       }}
-                      size="small"
                     >
-                      <Download />
-                    </IconButton>
-                    
+                      다운로드
+                    </Button>
                     <IconButton
                       onClick={() => handleDelete(music.id)}
-                      sx={{ 
-                        bgcolor: 'error.main',
-                        color: 'white',
-                        '&:hover': { bgcolor: 'error.dark' }
+                      sx={{
+                        color: colors.textLight,
+                        ml: 'auto',
+                        '&:hover': {
+                          bgcolor: '#FFEBEE',
+                          color: '#F44336'
+                        }
                       }}
-                      size="small"
                     >
                       <Delete />
                     </IconButton>
-                  </Box>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-    </Container>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Container>
+    </Box>
   );
 };
 

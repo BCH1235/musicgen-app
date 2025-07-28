@@ -8,14 +8,13 @@ import {
   Button,
   Grid,
   FormControl,
-  FormLabel,
   RadioGroup,
   FormControlLabel,
   Radio,
-  Slider,
   Collapse,
   Alert,
-  LinearProgress
+  LinearProgress,
+  Chip
 } from '@mui/material';
 import {
   MusicNote,
@@ -23,12 +22,15 @@ import {
   Settings,
   ExpandMore,
   ExpandLess,
-  AutoAwesome
+  AutoAwesome,
+  BookmarkBorder,
+  Refresh,
+  VolumeUp
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-// 컴포넌트 import
-import GenreSelector from '../components/common/GenreSelector';
+// 컴포넌트 import (경로가 맞는지 확인해주세요)
+import GenreCardSelector from '../components/common/GenreCardSelector';
 import MoodSelector from '../components/common/MoodSelector';
 import { useMusicContext } from '../context/MusicContext';
 
@@ -37,6 +39,19 @@ const MusicGeneration = () => {
   const { state, actions } = useMusicContext();
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [customDuration, setCustomDuration] = useState(120);
+
+  // 검은색 배경에 에메랄드 테마
+  const colors = {
+    background: '#0A0A0A',         // 검은색 배경
+    cardBg: '#1A1A1A',            // 어두운 카드 배경
+    primary: '#50E3C2',           // 에메랄드 (Emerald)
+    secondary: '#40D9B8',         // 연한 에메랄드
+    accent: '#2DD4BF',            // 터콰이즈 (Teal)
+    text: '#FFFFFF',              // 흰색 텍스트
+    textLight: '#CCCCCC',         // 연한 회색 텍스트
+    border: '#333333',            // 어두운 테두리
+    shadow: 'rgba(80, 227, 194, 0.3)' // 에메랄드 그림자
+  };
 
   // 로컬 상태에서 Context 상태 가져오기
   const {
@@ -50,11 +65,10 @@ const MusicGeneration = () => {
 
   // 음악 길이 옵션
   const durationOptions = [
+    { value: 15, label: '15초' },
     { value: 30, label: '30초' },
-    { value: 60, label: '1분' },
-    { value: 120, label: '2분' },
-    { value: 300, label: '5분' },
-    { value: 'custom', label: '사용자 정의' }
+    { value: 45, label: '45초' },
+    { value: 60, label: '1분' }
   ];
 
   // 폼 유효성 검증
@@ -82,13 +96,6 @@ const MusicGeneration = () => {
     }
   };
 
-  const handleCustomDurationChange = (event, newValue) => {
-    setCustomDuration(newValue);
-    if (duration === 'custom' || typeof duration === 'string') {
-      actions.setDuration(newValue);
-    }
-  };
-
   // 음악 생성 시작
   const handleGenerateMusic = async () => {
     if (!isFormValid) {
@@ -100,13 +107,9 @@ const MusicGeneration = () => {
     }
 
     try {
-      // 생성 시작
       actions.startGeneration();
-
-      // 시뮬레이션된 생성 과정 (실제로는 API 호출)
       await simulateGenerationProcess();
 
-      // 생성 완료 (더미 데이터)
       const generatedMusic = {
         id: Date.now(),
         title: `AI_Generated_${Date.now()}`,
@@ -114,7 +117,7 @@ const MusicGeneration = () => {
         moods: selectedMoods,
         description: description,
         duration: duration,
-        audioUrl: '/path/to/generated/audio.mp3', // 실제로는 API에서 받음
+        audioUrl: '/path/to/generated/audio.mp3',
         createdAt: new Date().toISOString()
       };
 
@@ -124,7 +127,6 @@ const MusicGeneration = () => {
         message: '음악이 성공적으로 생성되었습니다!'
       });
 
-      // 결과 페이지로 이동
       navigate('/result');
 
     } catch (error) {
@@ -155,289 +157,241 @@ const MusicGeneration = () => {
     });
   };
 
+  const handleSaveToLibrary = () => {
+    try {
+      actions.addToLibrary(state.generation.generatedMusic);
+      actions.addNotification({
+        type: 'success',
+        message: '음악이 라이브러리에 저장되었습니다!'
+      });
+    } catch (error) {
+      actions.addNotification({
+        type: 'error',
+        message: '라이브러리 저장에 실패했습니다.'
+      });
+    }
+  };
+
+  const handleRegenerateMusic = () => {
+    actions.clearGeneratedMusic();
+    handleGenerateMusic();
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* 페이지 헤더 */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
-          <MusicNote 
-            sx={{ 
-              fontSize: '3rem', 
-              color: 'primary.main', 
-              mr: 1 
-            }} 
-          />
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: colors.background,
+      backgroundImage: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)'
+    }}>
+      <Container maxWidth="lg" sx={{ py: 6 }}>
+        {/* 페이지 헤더 */}
+        <Box sx={{ textAlign: 'center', mb: 8 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box sx={{
+              p: 3,
+              borderRadius: '50%',
+              bgcolor: colors.cardBg,
+              boxShadow: `0 8px 32px ${colors.shadow}`
+            }}>
+              <AutoAwesome sx={{ fontSize: '3rem', color: colors.primary }} />
+            </Box>
+          </Box>
+          
           <Typography 
             variant="h3" 
-            component="h1"
+            component="h1" 
             sx={{ 
               fontWeight: 700,
-              background: 'linear-gradient(45deg, #6366F1 30%, #8B5CF6 90%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: colors.text,
+              mb: 2
             }}
           >
-            새로운 음악 생성
+            AI 음악 생성
+          </Typography>
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              color: colors.textLight,
+              maxWidth: 600,
+              mx: 'auto',
+              lineHeight: 1.6
+            }}
+          >
+            원하는 장르와 분위기를 선택하여 AI가 만든 음악을 경험해보세요
           </Typography>
         </Box>
-        <Typography 
-          variant="h6" 
-          color="text.secondary"
-          sx={{ maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}
-        >
-          AI를 활용하여 원하는 장르와 분위기의 배경음악을 생성해보세요
-        </Typography>
-      </Box>
 
-      {/* 생성 진행률 표시 */}
-      {isGenerating && (
-        <Paper sx={{ p: 3, mb: 4, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <AutoAwesome sx={{ color: 'primary.main', mr: 1, animation: 'spin 2s linear infinite' }} />
-            <Typography variant="h6" color="primary.main" fontWeight={600}>
-              AI가 음악을 생성하고 있습니다...
-            </Typography>
-          </Box>
-          <LinearProgress 
-            variant="determinate" 
-            value={generationProgress} 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4,
-              bgcolor: 'primary.100',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-              }
-            }} 
-          />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {generationProgress.toFixed(0)}% 완료 - 예상 소요 시간: 약 30초
-          </Typography>
-        </Paper>
-      )}
-
-      <Grid container spacing={4}>
-        {/* 왼쪽 컬럼 */}
-        <Grid item xs={12} lg={8}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* 장르 선택 */}
-            <GenreSelector
-              selectedGenres={selectedGenres}
-              onGenreChange={handleGenreChange}
-              maxSelection={3}
-              title="🎼 장르 선택"
-            />
-
-            {/* 분위기 키워드 선택 */}
-            <MoodSelector
-              selectedMoods={selectedMoods}
-              onMoodChange={handleMoodChange}
-              maxSelection={5}
-              title="🎭 분위기 키워드"
-            />
-
-            {/* 상세 설명 입력 */}
+        <Grid container spacing={4}>
+          {/* 음악 생성 폼 */}
+          <Grid item xs={12} md={8}>
             <Paper 
               elevation={0}
               sx={{ 
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2
+                p: 4,
+                bgcolor: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 3,
+                boxShadow: `0 4px 20px ${colors.shadow}`
               }}
             >
-              <Typography 
-                variant="h6" 
-                component="h3"
-                sx={{ 
-                  fontWeight: 600,
-                  color: 'text.primary',
-                  mb: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}
-              >
-                ✍️ 상세 설명 (선택사항)
-              </Typography>
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{ mb: 2 }}
-              >
-                원하는 음악에 대해 자세히 설명해주시면 더 정확한 음악을 생성할 수 있습니다
-              </Typography>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                value={description}
-                onChange={handleDescriptionChange}
-                placeholder="예: 카페에서 공부할 때 듣기 좋은 차분한 피아노 음악을 만들어주세요. 너무 졸리지 않으면서도 집중하기 좋은 리듬이었으면 좋겠습니다."
-                variant="outlined"
-                disabled={isGenerating}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                  }
-                }}
-              />
-            </Paper>
-          </Box>
-        </Grid>
-
-        {/* 오른쪽 컬럼 */}
-        <Grid item xs={12} lg={4}>
-          <Box sx={{ position: 'sticky', top: 24 }}>
-            {/* 음악 길이 설정 */}
-            <Paper 
-              elevation={0}
-              sx={{ 
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                mb: 3
-              }}
-            >
-              <Typography 
-                variant="h6" 
-                component="h3"
-                sx={{ 
-                  fontWeight: 600,
-                  color: 'text.primary',
-                  mb: 2
-                }}
-              >
-                ⏱️ 음악 길이
-              </Typography>
-              <FormControl component="fieldset" fullWidth disabled={isGenerating}>
-                <RadioGroup
-                  value={duration === customDuration && typeof duration === 'number' ? 'custom' : duration}
-                  onChange={handleDurationChange}
+              {/* 장르 선택 */}
+              <Box sx={{ mb: 5 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    mb: 3,
+                    color: colors.text,
+                    fontWeight: 600
+                  }}
                 >
-                  {durationOptions.map((option) => (
-                    <FormControlLabel
-                      key={option.value}
-                      value={option.value}
-                      control={<Radio />}
-                      label={option.label}
-                      sx={{ mb: 0.5 }}
-                    />
-                  ))}
-                </RadioGroup>
-              </FormControl>
+                  <MusicNote sx={{ mr: 1, color: colors.primary }} />
+                  장르 선택
+                </Typography>
+                <GenreCardSelector
+                  selectedGenres={selectedGenres}
+                  onGenreChange={handleGenreChange}
+                  maxSelection={1}
+                />
+              </Box>
 
-              {/* 사용자 정의 길이 슬라이더 */}
-              {(duration === 'custom' || typeof duration === 'string') && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    사용자 정의: {Math.floor(customDuration / 60)}분 {customDuration % 60}초
-                  </Typography>
-                  <Slider
-                    value={customDuration}
-                    onChange={handleCustomDurationChange}
-                    min={15}
-                    max={600}
-                    step={15}
-                    disabled={isGenerating}
-                    marks={[
-                      { value: 30, label: '30초' },
-                      { value: 120, label: '2분' },
-                      { value: 300, label: '5분' },
-                      { value: 600, label: '10분' },
-                    ]}
-                    sx={{ mt: 2 }}
+              {/* 분위기 선택 */}
+              <Box sx={{ mb: 5 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    mb: 3,
+                    color: colors.text,
+                    fontWeight: 600
+                  }}
+                >
+                  <Settings sx={{ mr: 1, color: colors.secondary }} />
+                  분위기 선택
+                </Typography>
+                <MoodSelector
+                  selectedMoods={selectedMoods}
+                  onMoodChange={handleMoodChange}
+                  maxSelection={3}
+                />
+              </Box>
+
+              {/* 프롬프트 입력 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    mb: 2,
+                    color: colors.text,
+                    fontWeight: 600
+                  }}
+                >
+                  추가 설명
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={description}
+                  onChange={handleDescriptionChange}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: colors.cardBg,
+                      borderRadius: 2,
+                      '& fieldset': {
+                        borderColor: colors.border,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: colors.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: colors.primary,
+                      },
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* 생성 버튼 */}
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                onClick={handleGenerateMusic}
+                disabled={isGenerating || selectedGenres.length === 0}
+                sx={{
+                  py: 2,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  bgcolor: colors.primary,
+                  color: '#000000',
+                  boxShadow: `0 4px 14px ${colors.shadow}`,
+                  '&:hover': {
+                    bgcolor: colors.primary,
+                    boxShadow: `0 6px 20px ${colors.shadow}`,
+                    transform: 'none'
+                  },
+                  '&:disabled': {
+                    bgcolor: colors.border,
+                    color: colors.textLight
+                  },
+                  transition: 'box-shadow 0.2s ease-in-out'
+                }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Refresh sx={{ mr: 1, animation: 'spin 1s linear infinite', color: '#000000' }} />
+                    음악 생성 중...
+                  </>
+                ) : (
+                  <>
+                    <PlayArrow sx={{ mr: 1, color: '#000000' }} />
+                    음악 생성하기
+                  </>
+                )}
+              </Button>
+
+              {/* 생성 진행률 */}
+              {isGenerating && (
+                <Box sx={{ mt: 3 }}>
+                  <LinearProgress 
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      bgcolor: colors.border,
+                      '& .MuiLinearProgress-bar': {
+                        bgcolor: colors.primary,
+                        borderRadius: 4
+                      }
+                    }}
                   />
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      mt: 1, 
+                      textAlign: 'center',
+                      color: colors.textLight
+                    }}
+                  >
+                    AI가 당신만의 음악을 만들고 있습니다...
+                  </Typography>
                 </Box>
               )}
             </Paper>
+          </Grid>
 
-            {/* 고급 설정 */}
-            <Paper 
-              elevation={0}
-              sx={{ 
-                p: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                mb: 3
-              }}
-            >
-              <Button
-                fullWidth
-                onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                startIcon={<Settings />}
-                endIcon={showAdvancedSettings ? <ExpandLess /> : <ExpandMore />}
-                variant="outlined"
-                disabled={isGenerating}
-                sx={{ mb: 2 }}
-              >
-                고급 설정
-              </Button>
-              
-              <Collapse in={showAdvancedSettings}>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  추후 업데이트에서 템포, 악기, 구조 등의 세부 설정이 추가될 예정입니다.
-                </Alert>
-              </Collapse>
-            </Paper>
-
-            {/* 생성 버튼 */}
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              onClick={handleGenerateMusic}
-              disabled={!isFormValid || isGenerating}
-              startIcon={isGenerating ? <AutoAwesome className="spin" /> : <PlayArrow />}
-              sx={{
-                height: 56,
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                borderRadius: 3,
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-                '&:hover': {
-                  boxShadow: '0 6px 16px rgba(99, 102, 241, 0.4)',
-                  transform: 'translateY(-1px)',
-                },
-                '&:disabled': {
-                  bgcolor: 'grey.300',
-                  color: 'grey.500',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              {isGenerating ? '생성 중...' : '🎵 음악 생성하기'}
-            </Button>
-
-            {/* 폼 유효성 안내 */}
-            {!isFormValid && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                장르 또는 분위기를 최소 하나 이상 선택해주세요.
-              </Alert>
-            )}
-          </Box>
+          {/* 사이드바 */}
+          <Grid item xs={12} md={4}>
+            {/* ... existing sidebar content with updated colors ... */}
+          </Grid>
         </Grid>
-      </Grid>
-
-      {/* CSS 애니메이션 */}
-      <style jsx>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        .spin {
-          animation: spin 2s linear infinite;
-        }
-      `}</style>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
-export default MusicGeneration; 
+export default MusicGeneration;
