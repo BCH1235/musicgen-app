@@ -65,7 +65,7 @@ const MusicGeneration = () => {
     try {
       actions.startGeneration();
       const prompt = buildPrompt();
-      const dur = Number(duration || 15);
+      const dur = Number(duration || 30);
 
       const final = await generateAndWait(
         { description: prompt, duration: dur },

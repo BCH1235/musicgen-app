@@ -181,7 +181,7 @@ def worker_generate(task_id: str, prompt: str, genres, moods, duration: int):
             "model_version": "stereo-large",
             "normalization_strategy": "peak",
             # Some versions also accept "duration" (seconds); harmless if ignored:
-            # "duration": duration
+            "duration": duration
         })
         res = mk_result(audio_url, "AI_Generated_Track", genres, moods, duration, "generated")
         _set_task_status(task_id, "succeeded", result=res, audioUrl=res["audioUrl"])
