@@ -1,16 +1,15 @@
 // src/pages/MusicGeneration.js
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Container, Box, Typography, Paper, TextField, Button, Grid, LinearProgress
 } from '@mui/material';
-import { MusicNote, PlayArrow, Settings, AutoAwesome, Refresh } from '@mui/icons-material';
+import { MusicNote, PlayArrow, AutoAwesome, Refresh, UploadFile, Delete } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import GenreCardSelector from '../components/common/GenreCardSelector';
 import MoodSelector from '../components/common/MoodSelector';
 import { useMusicContext } from '../context/MusicContext';
 
-// ✅ 백엔드 호출
 import { generateAndWait } from '../services/musicApi';
 
 const MusicGeneration = () => {
@@ -43,6 +42,52 @@ const MusicGeneration = () => {
   const handleMoodChange = (moods) => actions.setSelectedMoods(moods);
   const handleDescriptionChange = (e) => actions.setDescription(e.target.value);
 
+  // ⬇️ 오디오 첨부 상태
+  const [file, setFile] = useState(null);
+  const [audioPreview, setAudioPreview] = useState('');
+  const fileInfo = useMemo(
+    () => (file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : '첨부 없음'),
+    [file]
+  );
+
+  const handleFilePick = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('audio/')) {
+      alert('오디오 파일만 첨부하세요 (wav, mp3 등)');
+      e.target.value = '';
+      return;
+    }
+    setFile(f);
+    const url = URL.createObjectURL(f);
+    setAudioPreview(url);
+  };
+
+  const removeFile = () => {
+    if (audioPreview) URL.revokeObjectURL(audioPreview);
+    setFile(null);
+    setAudioPreview('');
+  };
+
+  // ✅ Beat Maker에서 'Generate로 보내기'를 눌렀을 때 자동 첨부
+  useEffect(() => {
+    const dataUrl = sessionStorage.getItem('inlineReferenceAudio');
+    if (!dataUrl) return;
+
+    (async () => {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const fileFromBeat = new File([blob], 'beat.wav', { type: 'audio/wav' });
+
+      setFile(fileFromBeat);
+      const url = URL.createObjectURL(fileFromBeat);
+      setAudioPreview(url);
+
+      sessionStorage.removeItem('inlineReferenceAudio'); // 1회성
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 프롬프트 조합
   const buildPrompt = () => {
     const g = selectedGenres.join(', ');
@@ -52,24 +97,21 @@ const MusicGeneration = () => {
       .join(', ');
   };
 
-  // 실제 음악 생성
+  // 생성
   const handleGenerateMusic = async () => {
     if (!isFormValid) {
-      actions.addNotification({
-        type: 'error',
-        message: '장르 또는 분위기를 최소 하나 이상 선택해주세요.'
-      });
+      actions.addNotification({ type: 'error', message: '장르 또는 분위기를 최소 하나 이상 선택해주세요.' });
       return;
     }
-
     try {
       actions.startGeneration();
       const prompt = buildPrompt();
       const dur = Number(duration || 30);
 
       const final = await generateAndWait(
-        { description: prompt, duration: dur },
-        (s) => actions.updateGenerationProgress(s.status && s.status !== 'succeeded' ? 50 : 0)
+        { description: prompt, genres: selectedGenres, moods: selectedMoods, duration: dur },
+        (s) => actions.updateGenerationProgress(s.status && s.status !== 'succeeded' ? 50 : 0),
+        file // ✅ 첨부 파일 전달
       );
 
       const generatedMusic = {
@@ -79,240 +121,118 @@ const MusicGeneration = () => {
         moods: selectedMoods,
         description: prompt,
         duration: dur,
-        audioUrl: final.result.audioUrl, // ▶️ 실제 mp3 URL
+        audioUrl: final.result.audioUrl,
         createdAt: new Date().toISOString()
       };
 
       actions.completeGeneration(generatedMusic);
-      actions.addNotification({
-        type: 'success',
-        message: '음악이 성공적으로 생성되었습니다!'
-      });
-
+      actions.addNotification({ type: 'success', message: '음악이 성공적으로 생성되었습니다!' });
       navigate('/result');
     } catch (error) {
       console.error(error);
       actions.setError(error.message || '음악 생성 중 오류가 발생했습니다.');
-      actions.addNotification({
-        type: 'error',
-        message: '음악 생성에 실패했습니다. 다시 시도해주세요.'
-      });
+      actions.addNotification({ type: 'error', message: '음악 생성에 실패했습니다. 다시 시도해주세요.' });
     } finally {
-      // 실패하든 성공하든 스피너가 멈추도록 안전장치
       actions.updateGenerationProgress?.(0);
       actions.setGenerating?.(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        bgcolor: colors.background,
-        backgroundImage: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)'
-      }}
-    >
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        {/* 헤더 */}
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                p: 3,
-                borderRadius: '50%',
-                bgcolor: colors.cardBg,
-                boxShadow: `0 8px 32px ${colors.shadow}`
-              }}
-            >
-              <AutoAwesome sx={{ fontSize: '3rem', color: colors.primary }} />
-            </Box>
-          </Box>
-          <Typography
-            variant="h3"
-            component="h1"
-            sx={{ fontWeight: 700, color: colors.text, mb: 2 }}
-          >
-            AI 음악 생성
-          </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              color: colors.textLight,
-              maxWidth: 600,
-              mx: 'auto',
-              lineHeight: 1.6
-            }}
-          >
-            원하는 장르와 분위기를 선택하여 AI가 만든 음악을 경험해보세요
-          </Typography>
-        </Box>
+    <Box sx={{ minHeight: '100vh', bgcolor: colors.background, py: 6 }}>
+      <Container maxWidth="lg">
+        <Typography variant="h4" sx={{ color: colors.text, fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center' }}>
+          <MusicNote sx={{ mr: 1, color: colors.primary }} />
+          생성하기 (Generate)
+        </Typography>
 
         <Grid container spacing={4}>
+          {/* 메인 카드 */}
           <Grid item xs={12} md={8}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 4,
-                bgcolor: colors.cardBg,
-                border: `1px solid ${colors.border}`,
-                borderRadius: 3,
-                boxShadow: `0 4px 20px ${colors.shadow}`
-              }}
-            >
-              {/* 장르 */}
-              <Box sx={{ mb: 5 }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    mb: 3,
-                    color: colors.text,
-                    fontWeight: 600
-                  }}
-                >
-                  <MusicNote sx={{ mr: 1, color: colors.primary }} />
-                  장르 선택
-                </Typography>
-                <GenreCardSelector
-                  selectedGenres={selectedGenres}
-                  onGenreChange={handleGenreChange}
-                  maxSelection={1}
-                />
-              </Box>
-
-              {/* 분위기 */}
-              <Box sx={{ mb: 5 }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    mb: 3,
-                    color: colors.text,
-                    fontWeight: 600
-                  }}
-                >
-                  <Settings sx={{ mr: 1, color: colors.secondary }} />
-                  분위기 선택
-                </Typography>
-                <MoodSelector
-                  selectedMoods={selectedMoods}
-                  onMoodChange={handleMoodChange}
-                  maxSelection={3}
-                />
-              </Box>
-
+            <Paper elevation={0} sx={{ bgcolor: colors.cardBg, p: 4, borderRadius: 3, border: `1px solid ${colors.border}` }}>
               {/* 프롬프트 */}
               <Box sx={{ mb: 4 }}>
-                <Typography
-                  variant="h6"
-                  sx={{ mb: 2, color: colors.text, fontWeight: 600 }}
-                >
-                  추가 설명
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2, color: colors.text, fontWeight: 600 }}>
+                  <AutoAwesome sx={{ mr: 1, color: colors.primary }} />
+                  프롬프트
                 </Typography>
                 <TextField
-                  placeholder="어떤 느낌/상황/악기 등을 적어 주세요 (예: energetic EDM for gaming)"
-                  fullWidth
-                  multiline
-                  rows={3}
-                  value={description}
-                  onChange={handleDescriptionChange}
+                  fullWidth multiline minRows={2}
+                  placeholder="예: dreamy lofi hiphop with warm piano"
+                  value={description} onChange={handleDescriptionChange}
                   sx={{
-                    '& .MuiOutlinedInput-root': {
-                      bgcolor: colors.cardBg,
-                      borderRadius: 2,
-                      '& fieldset': { borderColor: colors.border },
-                      '&:hover fieldset': { borderColor: colors.primary },
-                      '&.Mui-focused fieldset': { borderColor: colors.primary }
-                    },
-                    // ✨ 입력 글씨/플레이스홀더/라벨 색상
-                    '& .MuiInputBase-input': {
-                      color: colors.text
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: colors.textLight,
-                      opacity: 0.8
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: colors.textLight
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': {
-                      color: colors.primary
-                    }
+                    '& .MuiInputBase-root': { bgcolor: '#111', color: colors.text, borderRadius: 2 },
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border }
                   }}
+                />
+              </Box>
+
+              {/* 오디오 첨부 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2, color: colors.text, fontWeight: 600 }}>
+                  <UploadFile sx={{ mr: 1, color: colors.primary }} />
+                  오디오 첨부 (선택)
+                </Typography>
+
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', gap: 2, mb: 2,
+                  p: 2, borderRadius: 2, border: `1px dashed ${colors.border}`, bgcolor: '#111'
+                }}>
+                  <Button variant="outlined" component="label" sx={{ color: colors.text, borderColor: colors.border }}>
+                    파일 선택
+                    <input type="file" hidden accept="audio/*" onChange={handleFilePick} />
+                  </Button>
+                  <Typography sx={{ color: colors.textLight, flex: 1 }}>{fileInfo}</Typography>
+                  {file && (
+                    <Button onClick={removeFile} size="small" startIcon={<Delete />} sx={{ color: colors.text }}>
+                      제거
+                    </Button>
+                  )}
+                </Box>
+
+                {audioPreview && (
+                  <audio controls src={audioPreview} style={{ width: '100%' }} />
+                )}
+              </Box>
+
+              {/* 장르 / 분위기 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ color: colors.text, fontWeight: 600, mb: 2 }}>장르 선택</Typography>
+                <GenreCardSelector selectedGenres={selectedGenres} onGenreChange={handleGenreChange} maxSelection={1} />
+              </Box>
+
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ color: colors.text, fontWeight: 600, mb: 2 }}>분위기 선택</Typography>
+                <MoodSelector selectedMoods={selectedMoods} onMoodChange={handleMoodChange} maxSelection={3} />
+              </Box>
+
+              {/* 길이 입력 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ color: colors.text, fontWeight: 600, mb: 2 }}>길이(초)</Typography>
+                <TextField
+                  type="number" value={duration} onChange={(e)=>actions.setDuration(Number(e.target.value || 0))}
+                  sx={{ width: 160, '& .MuiInputBase-root': { bgcolor: '#111', color: colors.text, borderRadius: 2 } }}
+                  inputProps={{ min: 5, max: 60 }}
                 />
               </Box>
 
               {/* 생성 버튼 */}
               <Button
-                fullWidth
-                variant="contained"
-                size="large"
-                onClick={handleGenerateMusic}
-                disabled={isGenerating || selectedGenres.length === 0}
+                fullWidth variant="contained" size="large"
+                onClick={handleGenerateMusic} disabled={!isFormValid || isGenerating}
                 sx={{
-                  py: 2,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  fontSize: '1.1rem',
-                  bgcolor: colors.primary,
-                  color: '#000',
-                  boxShadow: `0 4px 14px ${colors.shadow}`,
-                  '&:hover': {
-                    bgcolor: colors.primary,
-                    boxShadow: `0 6px 20px ${colors.shadow}`,
-                    transform: 'none'
-                  },
-                  '&:disabled': {
-                    bgcolor: colors.border,
-                    color: colors.textLight
-                  },
-                  transition: 'box-shadow 0.2s ease-in-out'
+                  py: 2, borderRadius: 2, fontWeight: 600, fontSize: '1.1rem',
+                  bgcolor: colors.accent, color: '#000', boxShadow: `0 4px 14px ${colors.shadow}`,
+                  '&:hover': { bgcolor: colors.accent, boxShadow: `0 6px 20px ${colors.shadow}` },
+                  '&:disabled': { bgcolor: colors.border, color: colors.textLight, boxShadow: 'none' }
                 }}
               >
-                {isGenerating ? (
-                  <>
-                    <Refresh
-                      sx={{ mr: 1, animation: 'spin 1s linear infinite', color: '#000' }}
-                    />
-                    음악 생성 중...
-                  </>
-                ) : (
-                  <>
-                    <PlayArrow sx={{ mr: 1, color: '#000' }} />
-                    음악 생성하기
-                  </>
-                )}
+                {isGenerating ? (<><Refresh sx={{ mr: 1, animation: 'spin 1s linear infinite', color: '#000' }} />생성 중...</>) :
+                 (<><PlayArrow sx={{ mr: 1, color: '#000' }} />생성하기</>)}
               </Button>
 
-              {/* 진행률 */}
-              {isGenerating && (
-                <Box sx={{ mt: 3 }}>
-                  <LinearProgress
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: colors.border,
-                      '& .MuiLinearProgress-bar': {
-                        bgcolor: colors.primary,
-                        borderRadius: 4
-                      }
-                    }}
-                  />
-                  <Typography
-                    variant="body2"
-                    sx={{ mt: 1, textAlign: 'center', color: colors.textLight }}
-                  >
-                    AI가 당신만의 음악을 만들고 있습니다...
-                  </Typography>
-                </Box>
-              )}
+              {isGenerating && <Box sx={{ mt: 2 }}><LinearProgress /></Box>}
             </Paper>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            {/* (필요 시) 사이드바 콘텐츠 */}
           </Grid>
         </Grid>
       </Container>
