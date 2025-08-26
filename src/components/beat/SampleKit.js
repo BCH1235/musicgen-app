@@ -1,132 +1,142 @@
 // src/components/beat/SampleKit.js
-// Tone는 import 하지 않습니다. toneCompat가 전역(window.Tone)을 로드합니다.
-import { getTone } from '../../lib/toneCompat';
+// 깨끗한 드럼 사운드를 위해 샘플 기반 킷(Players) → 실패 시 신스 폴백
+import { getTone, ensureAudioStart } from '../../lib/toneCompat';
 
-// dB → linear
 const dbToGain = (db) => Math.pow(10, db / 20);
 
-export async function createKit({ volume = -6 } = {}) {
-  const Tone = await getTone();
+// Tone.js GitHub Pages의 경량 드럼 샘플 (CR78 계열)
+// 네트워크 문제 시 자동 폴백(신스)로 전환됨.
+const SAMPLE_URLS = {
+  kick:  "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+  snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+  hat:   "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+};
 
-  // 각 트리거가 공통으로 거칠 마스터 게인 (곡 전체 볼륨조절용)
+/**
+ * createKit({ volume, useSamples })
+ * - volume: 마스터 볼륨(dB, 기본 -6)
+ * - useSamples: true면 샘플 사용(권장). 로딩 실패시 자동 폴백.
+ *
+ * 반환
+ * { trigger(track, time), setMasterGain(db) }
+ */
+export async function createKit({ volume = -6, useSamples = true } = {}) {
+  const Tone = getTone();
+  if (!Tone) throw new Error("Tone not available");
+
+  await ensureAudioStart();
+
+  // 공통 마스터
   const master = new Tone.Gain(dbToGain(volume)).toDestination();
 
-  // ---- 단순 킥: 사인파 + 피치 드롭 + 짧은 앰프 엔벨로프
+  // ────────────────────────────────────────────────
+  // 1) 샘플 킷 (권장): 아주 깔끔하고 CPU 가벼움
+  // ────────────────────────────────────────────────
+  if (useSamples) {
+    try {
+      const players = new Tone.Players(
+        {
+          kick: SAMPLE_URLS.kick,
+          snare: SAMPLE_URLS.snare,
+          hat: SAMPLE_URLS.hat,
+        },
+        // onload
+        () => {}
+      ).connect(master);
+
+      // 로딩 대기 (Tone v14: loaded() Promise 제공)
+      if (typeof players.loaded === "function") {
+        await players.loaded();
+      } else {
+        // 일부 빌드에선 loaded() 없을 수 있음 → 약간 대기
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      function trigger(track, time) {
+        const p = players.player(track);
+        if (!p) return;
+        // 시작: 전체 원샷 길이로 재생(필요시 length를 짧게 줄여도 됨)
+        p.start(time);
+      }
+
+      function setMasterGain(db) {
+        master.gain.value = dbToGain(db);
+      }
+
+      return { trigger, setMasterGain };
+    } catch (e) {
+      console.warn("[SampleKit] sample load failed, falling back to synth.", e);
+      // 아래 신스 폴백으로 계속 진행
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // 2) 신스 폴백 킷 (샘플 부재/오프라인 대비)
+  // ────────────────────────────────────────────────
+  // 짧은 퍼커시브로 '치지직' 최소화
   function triggerKick(time) {
     const osc = new Tone.Oscillator(120, 'sine');
     const amp = new Tone.Gain(0);
-
-    osc.connect(amp);
-    amp.connect(master);
-
+    osc.connect(amp).connect(master);
     osc.start(time);
 
-    // 앰프 엔벨로프
     amp.gain.setValueAtTime(0.001, time);
     amp.gain.exponentialRampToValueAtTime(0.9, time + 0.004);
-    amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+    amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
 
-    // 피치 드롭
     osc.frequency.setValueAtTime(120, time);
-    osc.frequency.exponentialRampToValueAtTime(50, time + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(55, time + 0.16);
 
-    osc.stop(time + 0.25);
-
-    // 간단 정리 (살짝 여유)
-    setTimeout(() => {
-      try { osc.dispose(); amp.dispose(); } catch {}
-    }, 350);
+    osc.stop(time + 0.2);
+    setTimeout(() => { try { osc.dispose(); amp.dispose(); } catch {} }, 260);
   }
 
-  // ---- 스네어: 화이트 노이즈 + 짧은 앰프 + 하이패스/밴드패스
   function triggerSnare(time) {
-    const noiseSrc = Tone.Noise ? new Tone.Noise('white') : null;
-
-    if (noiseSrc) {
-      const hp = new Tone.Filter(800, 'highpass');
-      const bp = new Tone.Filter(1800, 'bandpass');
+    if (Tone.Noise) {
+      const noise = new Tone.Noise('white');
+      const hp = new Tone.Filter(1000, 'highpass');
+      const lp = new Tone.Filter(6500, 'lowpass');
       const amp = new Tone.Gain(0);
-
-      noiseSrc.connect(hp).connect(bp).connect(amp).connect(master);
-
-      noiseSrc.start(time);
+      noise.connect(hp).connect(lp).connect(amp).connect(master);
+      noise.start(time);
 
       amp.gain.setValueAtTime(0.001, time);
       amp.gain.exponentialRampToValueAtTime(0.8, time + 0.003);
-      amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
-
-      noiseSrc.stop(time + 0.15);
-
-      setTimeout(() => {
-        try { noiseSrc.dispose(); hp.dispose(); bp.dispose(); amp.dispose(); } catch {}
-      }, 300);
-    } else {
-      // 노이즈가 없는 매우 제한적인 빌드일 경우: 고주파 사각파로 근사
-      const osc = new Tone.Oscillator(1000, 'square');
-      const amp = new Tone.Gain(0);
-      const hp = new Tone.Filter(800, 'highpass');
-
-      osc.connect(hp).connect(amp).connect(master);
-
-      osc.start(time);
-      amp.gain.setValueAtTime(0.001, time);
-      amp.gain.exponentialRampToValueAtTime(0.6, time + 0.003);
       amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.09);
-      osc.stop(time + 0.12);
 
-      setTimeout(() => {
-        try { osc.dispose(); hp.dispose(); amp.dispose(); } catch {}
-      }, 250);
+      noise.stop(time + 0.1);
+      setTimeout(() => { try { noise.dispose(); hp.dispose(); lp.dispose(); amp.dispose(); } catch {} }, 200);
     }
   }
 
-  // ---- 하이햇: 화이트 노이즈 + 하이패스 + 매우 짧은 앰프
   function triggerHat(time) {
     if (Tone.Noise) {
       const noise = new Tone.Noise('white');
-      const hp = new Tone.Filter(7000, 'highpass');
+      const hp = new Tone.Filter(9000, 'highpass');
       const amp = new Tone.Gain(0);
-
       noise.connect(hp).connect(amp).connect(master);
-
       noise.start(time);
+
       amp.gain.setValueAtTime(0.001, time);
-      amp.gain.exponentialRampToValueAtTime(0.5, time + 0.001);
-      amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
-      noise.stop(time + 0.06);
-
-      setTimeout(() => {
-        try { noise.dispose(); hp.dispose(); amp.dispose(); } catch {}
-      }, 180);
-    } else {
-      // 노이즈가 없다면 초고역 사각파 클릭
-      const osc = new Tone.Oscillator(8000, 'square');
-      const amp = new Tone.Gain(0);
-
-      osc.connect(amp).connect(master);
-
-      osc.start(time);
-      amp.gain.setValueAtTime(0.001, time);
-      amp.gain.exponentialRampToValueAtTime(0.4, time + 0.001);
+      amp.gain.exponentialRampToValueAtTime(0.5, time + 0.0015);
       amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
-      osc.stop(time + 0.04);
 
-      setTimeout(() => {
-        try { osc.dispose(); amp.dispose(); } catch {}
-      }, 120);
+      noise.stop(time + 0.035);
+      setTimeout(() => { try { noise.dispose(); hp.dispose(); amp.dispose(); } catch {} }, 100);
     }
   }
 
-  return {
-    trigger(track, time) {
-      if (track === 'kick') return triggerKick(time);
-      if (track === 'snare') return triggerSnare(time);
-      if (track === 'hat') return triggerHat(time);
-    },
-    dispose() {
-      try { master.dispose?.(); } catch {}
-    },
-  };
+  function trigger(track, time) {
+    if (track === 'kick') return triggerKick(time);
+    if (track === 'snare') return triggerSnare(time);
+    if (track === 'hat') return triggerHat(time);
+  }
+
+  function setMasterGain(db) {
+    master.gain.value = dbToGain(db);
+  }
+
+  return { trigger, setMasterGain };
 }
 
 export default createKit;
