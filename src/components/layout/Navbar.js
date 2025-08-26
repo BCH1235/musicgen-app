@@ -1,3 +1,4 @@
+// src/components/layout/Navbar.js
 import React from 'react';
 import { 
   AppBar, 
@@ -6,19 +7,12 @@ import {
   Button, 
   Box,
   Container,
-  useTheme,
-  useMediaQuery,
   IconButton
 } from '@mui/material';
-import { 
-  MusicNote,
-  AudioFile,
-  Transform,
-  LibraryMusic,
-  Settings,
-  Menu
-} from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+// 사용하지 않는 아이콘들을 모두 제거했습니다.
+import { Menu } from '@mui/icons-material';
+// 사용하지 않는 useLocation을 제거했습니다.
+import { useNavigate } from 'react-router-dom';
 
 // 검은색 배경에 에메랄드 테마
 const colors = {
@@ -35,37 +29,6 @@ const colors = {
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  // 네비게이션 메뉴 아이템 정의
-  const navItems = [
-    { 
-      path: '/generate', 
-      label: '음악 생성', 
-      icon: <MusicNote />,
-      description: '새로운 AI 음악 생성'
-    },
-    { 
-      path: '/convert', 
-      label: '음악 변환', 
-      icon: <Transform />,
-      description: '기존 음악 스타일 변환'
-    },
-    { 
-      path: '/library', 
-      label: '라이브러리', 
-      icon: <LibraryMusic />,
-      description: '내 음악 컬렉션'
-    }
-  ];
-
-  // 현재 활성 페이지 확인
-  const isActivePage = (path) => {
-    return location.pathname === path || 
-           (path === '/generate' && location.pathname === '/');
-  };
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -145,7 +108,7 @@ const Navbar = () => {
                 }
               }}
             >
-              음악 변환
+              비트 만들기
             </Button>
             
             <Button
@@ -188,4 +151,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

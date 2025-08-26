@@ -254,24 +254,24 @@ export default function MusicConversion() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: colorsMemo.background, py: 6 }}>
-      <Container maxWidth="lg">
+      <Container maxWidth="xl">
         <Typography
           variant="h4"
           sx={{ color: colorsMemo.text, fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center' }}
         >
           <MusicNote sx={{ mr: 1, color: colorsMemo.primary }} />
-          비트 만들기 (Beat Maker)
+          비트 만들기
         </Typography>
 
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={3}>
             <Paper
               elevation={0}
-              sx={{ bgcolor: colorsMemo.cardBg, p: 3, borderRadius: 3, border: `1px solid ${colorsMemo.border}` }}
+              sx={{ 
+                bgcolor: colorsMemo.cardBg, p: 3, borderRadius: 3, border: `1px solid ${colorsMemo.border}`,
+                height: '100%' 
+              }}
             >
-              <Typography variant="h6" sx={{ color: colorsMemo.text, fontWeight: 600, mb: 2 }}>
-                패드 블렌딩
-              </Typography>
               <BlendPad
                 colors={colorsMemo}
                 corners={corners}
@@ -281,10 +281,15 @@ export default function MusicConversion() {
             </Paper>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={9}>
             <Paper
               elevation={0}
-              sx={{ bgcolor: colorsMemo.cardBg, p: 3, borderRadius: 3, border: `1px solid ${colorsMemo.border}` }}
+              sx={{ 
+                bgcolor: colorsMemo.cardBg, p: 3, borderRadius: 3, border: `1px solid ${colorsMemo.border}`,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
             >
               <TransportBar
                 bpm={bpm}
@@ -302,11 +307,11 @@ export default function MusicConversion() {
                 busyMsg={busyMsg}
               />
 
-              <Box sx={{ mt: 3 }}>
+              <Box sx={{ mt: 3, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <BeatGrid pattern={pattern} currentStep={currentStep} onToggle={onToggle} />
               </Box>
 
-              <Typography variant="body2" sx={{ mt: 2, color: colorsMemo.textLight }}>
+              <Typography variant="body2" sx={{ mt: 2, color: colorsMemo.textLight, flexShrink: 0 }}>
                 팁: 패드의 위치를 바꾸면 4개 코너 프리셋을 섞어 새 패턴이 만들어져요. 그리드에서 직접 찍어도 됩니다.
               </Typography>
             </Paper>

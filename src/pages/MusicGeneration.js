@@ -141,9 +141,10 @@ const MusicGeneration = () => {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: colors.background, py: 6 }}>
       <Container maxWidth="lg">
+        {/* 변경점 1: '(Generate)' 텍스트 제거 */}
         <Typography variant="h4" sx={{ color: colors.text, fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center' }}>
           <MusicNote sx={{ mr: 1, color: colors.primary }} />
-          생성하기 (Generate)
+          생성하기
         </Typography>
 
         <Grid container spacing={4}>
@@ -208,11 +209,12 @@ const MusicGeneration = () => {
 
               {/* 길이 입력 */}
               <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ color: colors.text, fontWeight: 600, mb: 2 }}>길이(초)</Typography>
+                {/* 변경점 2: 레이블 및 입력 범위 수정 */}
+                <Typography variant="h6" sx={{ color: colors.text, fontWeight: 600, mb: 2 }}>길이 (10초 ~ 30초)</Typography>
                 <TextField
                   type="number" value={duration} onChange={(e)=>actions.setDuration(Number(e.target.value || 0))}
                   sx={{ width: 160, '& .MuiInputBase-root': { bgcolor: '#111', color: colors.text, borderRadius: 2 } }}
-                  inputProps={{ min: 5, max: 60 }}
+                  inputProps={{ min: 10, max: 30 }}
                 />
               </Box>
 
@@ -231,7 +233,17 @@ const MusicGeneration = () => {
                  (<><PlayArrow sx={{ mr: 1, color: '#000' }} />생성하기</>)}
               </Button>
 
-              {isGenerating && <Box sx={{ mt: 2 }}><LinearProgress /></Box>}
+              {/* 변경점 3: 로딩 바 색상 변경 */}
+              {isGenerating && (
+                <Box sx={{ mt: 2 }}>
+                  <LinearProgress sx={{
+                    backgroundColor: colors.border,
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: colors.accent
+                    }
+                  }} />
+                </Box>
+              )}
             </Paper>
           </Grid>
         </Grid>

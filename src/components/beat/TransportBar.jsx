@@ -9,11 +9,9 @@ import SendIcon from '@mui/icons-material/Send';
 
 export default function TransportBar(props) {
   const {
-    // 두 방식 모두 허용: value={{bpm,bars}} 또는 bpm={...} bars={...}
     value,
     bpm: bpmProp,
     bars: barsProp,
-
     onChangeBpm,
     onChangeBars,
     onPlay,
@@ -21,12 +19,22 @@ export default function TransportBar(props) {
     onClear,
     onExport,
     onSendToGenerate,
-
     busy = false,
     busyMsg = '',
   } = props;
+  
+  const colors = {
+    accent: '#2DD4BF',
+    background: '#0A0A0A',
+    cardBg: '#1A1A1A',
+    border: '#333333',
+    text: '#FFFFFF',
+    textLight: '#CCCCCC',
+    shadow: 'rgba(45, 212, 191, 0.3)',
+    // 변경점 1: 정지 버튼에 사용할 빨간색 추가
+    danger: '#EF5350'
+  };
 
-  // 안전 추출 (value가 undefined여도 동작)
   const initialBpm = useMemo(() => {
     if (typeof value?.bpm === 'number') return value.bpm;
     if (typeof bpmProp === 'number') return bpmProp;
@@ -42,7 +50,6 @@ export default function TransportBar(props) {
   const [bpmLocal, setBpmLocal] = useState(initialBpm);
   const [barsLocal, setBarsLocal] = useState(initialBars);
 
-  // 외부 값이 바뀌면 동기화
   useEffect(() => setBpmLocal(initialBpm), [initialBpm]);
   useEffect(() => setBarsLocal(initialBars), [initialBars]);
 
@@ -60,68 +67,113 @@ export default function TransportBar(props) {
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mr: 1 }}>
         <Tooltip title="재생">
           <span>
-            <IconButton color="primary" onClick={onPlay} disabled={busy}>
-              <PlayArrowIcon />
+            <IconButton 
+              color="primary" 
+              onClick={onPlay} 
+              disabled={busy} 
+              size="large"
+              sx={{ color: colors.accent, '&:hover': { backgroundColor: 'rgba(45, 212, 191, 0.1)' } }}
+            >
+              <PlayArrowIcon fontSize="large" />
             </IconButton>
           </span>
         </Tooltip>
         <Tooltip title="정지">
           <span>
-            <IconButton onClick={onStop} disabled={busy}>
-              <StopIcon />
+            {/* 변경점 1: 정지 버튼 색상을 빨간색으로 변경 */}
+            <IconButton 
+              onClick={onStop} 
+              disabled={busy} 
+              size="large"
+              sx={{ color: colors.danger, '&:hover': { backgroundColor: 'rgba(239, 83, 80, 0.1)' } }}
+            >
+              <StopIcon fontSize="large" />
             </IconButton>
           </span>
         </Tooltip>
         <Tooltip title="초기화">
           <span>
-            <IconButton onClick={onClear} disabled={busy}>
-              <DeleteSweepIcon />
+            <IconButton 
+              onClick={onClear} 
+              disabled={busy} 
+              size="large"
+              sx={{ color: colors.textLight, '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' } }}
+            >
+              <DeleteSweepIcon fontSize="large" />
             </IconButton>
           </span>
         </Tooltip>
       </Stack>
 
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1.5} alignItems="center">
         <TextField
           label="BPM"
           type="number"
-          size="small"
           value={bpmLocal}
           onChange={handleBpmChange}
           inputProps={{ min: 40, max: 240 }}
-          sx={{ width: 110 }}
+          sx={{ 
+            width: 120,
+            '& .MuiInputBase-root': { bgcolor: '#111', color: colors.text, borderRadius: 2 },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+            '& .MuiInputLabel-root': { color: colors.textLight },
+            '&.Mui-focused .MuiInputLabel-root': { color: colors.accent },
+          }}
           disabled={busy}
         />
         <TextField
           label="마디"
           type="number"
-          size="small"
           value={barsLocal}
           onChange={handleBarsChange}
           inputProps={{ min: 1, max: 16 }}
-          sx={{ width: 110 }}
+          sx={{ 
+            width: 120,
+            '& .MuiInputBase-root': { bgcolor: '#111', color: colors.text, borderRadius: 2 },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+            '& .MuiInputLabel-root': { color: colors.textLight },
+            '&.Mui-focused .MuiInputLabel-root': { color: colors.accent },
+          }}
           disabled={busy}
         />
       </Stack>
 
-      <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+      <Stack direction="row" spacing={1.5} sx={{ ml: 'auto' }}>
         <Button
           variant="outlined"
           startIcon={<DownloadIcon />}
           onClick={onExport}
           disabled={busy}
+          size="large"
+          sx={{
+            borderColor: colors.accent,
+            color: colors.accent,
+            '&:hover': {
+              borderColor: colors.accent,
+              backgroundColor: 'rgba(45, 212, 191, 0.1)'
+            }
+          }}
         >
-          다운로드(WAV)
+          {/* 변경점 2: '(WAV)' 텍스트 제거 */}
+          다운로드
         </Button>
         <Button
           variant="contained"
           startIcon={<SendIcon />}
           onClick={onSendToGenerate}
           disabled={busy}
+          size="large"
+          sx={{
+            bgcolor: colors.accent,
+            color: colors.background,
+            '&:hover': {
+              bgcolor: '#28bfa8'
+            }
+          }}
         >
           생성하기로 보내기
         </Button>

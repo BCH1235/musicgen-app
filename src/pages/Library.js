@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Container,
   Box,
@@ -16,18 +16,16 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
-  Alert
+  InputLabel
+  // 변경점: 사용하지 않는 Alert 제거
 } from '@mui/material';
 import {
-  LibraryMusic,
+  // 변경점: 사용하지 않는 LibraryMusic, Sort, FilterList 제거
   Search,
   PlayArrow,
   Download,
   Delete,
   Favorite,
-  Sort,
-  FilterList,
   MusicNote
 } from '@mui/icons-material';
 
@@ -36,9 +34,9 @@ import { GENRE_OPTIONS } from '../components/common/GenreSelector';
 
 const Library = () => {
   const { state, actions } = useMusicContext();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date');
-  const [filterBy, setFilterBy] = useState('all');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [sortBy, setSortBy] = React.useState('date');
+  const [filterBy, setFilterBy] = React.useState('all');
 
   const { musicList } = state.library;
 
@@ -172,19 +170,9 @@ const Library = () => {
       <Container maxWidth="xl" sx={{ py: 6 }}>
         {/* 페이지 헤더 */}
         <Box sx={{ mb: 6, textAlign: 'center' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <Box sx={{
-              p: 3,
-              borderRadius: '50%',
-              bgcolor: colors.cardBg,
-              boxShadow: `0 8px 32px ${colors.shadow}`
-            }}>
-              <LibraryMusic sx={{ fontSize: '3rem', color: colors.accent }} />
-            </Box>
-          </Box>
           
           <Typography 
-            variant="h3" 
+            variant="h2" 
             component="h1"
             sx={{ 
               fontWeight: 700,
@@ -192,7 +180,7 @@ const Library = () => {
               mb: 2
             }}
           >
-            내 음악 라이브러리
+            라이브러리
           </Typography>
           
           <Typography 
@@ -516,4 +504,4 @@ const Library = () => {
   );
 };
 
-export default Library; 
+export default Library;
