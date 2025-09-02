@@ -6,7 +6,7 @@ AI Music Studio는 사용자가 텍스트 프롬프트나 오디오 파일을 �
 새로운 음악을 생성하고, 내장된 AI 비트 메이커를 통해 독창적인 드럼
 패턴을 만들 수 있는 웹 애플리케이션입니다.
 
-![Project Screenshot](링크/투/스크린샷.png) *(여기에 프로젝트 스크린샷
+![Project Screenshot](images/screenshot.png) *(여기에 프로젝트 스크린샷
 이미지 링크를 넣어주세요.)*
 
 ------------------------------------------------------------------------
@@ -98,8 +98,7 @@ AI Music Studio는 사용자가 텍스트 프롬프트나 오디오 파일을 �
 
 ## 프로젝트 구조
 
-이 프로젝트는 React 프론트엔드와 Python Flask 백엔드가 분리된
-**모노레포(monorepo)** 형태로 구성되어 있습니다.
+이 프로젝트는 React 프론트엔드와 Python Flask 백엔드가 분리된 형태로 구성되어 있습니다.
 
     /
     ├── ai-music-backend/    # Python Flask 백엔드 서버
