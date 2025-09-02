@@ -83,10 +83,12 @@ AI Music Studio는 사용자가 텍스트 프롬프트나 오디오 파일을 �
 
 ---
 
+```markdown
 ## 프로젝트 구조
 
 이 프로젝트는 React 프론트엔드와 Python Flask 백엔드가 분리된 모노레포(monorepo) 형태로 구성되어 있습니다.
 
+```
 /
 ├── ai-music-backend/    # Python Flask 백엔드 서버
 │   ├── server.py        # 메인 API 서버 파일
@@ -112,3 +114,5 @@ AI Music Studio는 사용자가 텍스트 프롬프트나 오디오 파일을 �
     ├── services/        # API 통신 로직 (musicApi.js)
     │
     └── App.js           # 메인 애플리케이션 컴포넌트
+```
+```
