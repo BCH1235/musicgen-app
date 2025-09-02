@@ -1,142 +1,55 @@
 // src/components/beat/SampleKit.js
-// 깨끗한 드럼 사운드를 위해 샘플 기반 킷(Players) → 실패 시 신스 폴백
-import { getTone, ensureAudioStart } from '../../lib/toneCompat';
 
-const dbToGain = (db) => Math.pow(10, db / 20);
+import { getTone } from '../../lib/toneCompat';
 
-// Tone.js GitHub Pages의 경량 드럼 샘플 (CR78 계열)
-// 네트워크 문제 시 자동 폴백(신스)로 전환됨.
-const SAMPLE_URLS = {
-  kick:  "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-  snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-  hat:   "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+// 우리가 public/samples/ 폴더에 넣은 9가지 드럼 악기 이름과 파일 경로를 정확하게 적어줍니다.
+const DRUM_SAMPLES = {
+  'kick': '/samples/kick.mp3',
+  'snare': '/samples/snare.mp3',
+  'hatClose': '/samples/hat-close.mp3', // presets.js와 이름 통일!
+  'hatOpen': '/samples/hat-open.mp3',
+  'tomLow': '/samples/tom-low.mp3',
+  'tomMid': '/samples/tom-mid.mp3',
+  'tomHigh': '/samples/tom-high.mp3',
+  'crash': '/samples/crash.mp3',
+  'ride': '/samples/ride.mp3',
 };
 
-/**
- * createKit({ volume, useSamples })
- * - volume: 마스터 볼륨(dB, 기본 -6)
- * - useSamples: true면 샘플 사용(권장). 로딩 실패시 자동 폴백.
- *
- * 반환
- * { trigger(track, time), setMasterGain(db) }
- */
-export async function createKit({ volume = -6, useSamples = true } = {}) {
-  const Tone = getTone();
-  if (!Tone) throw new Error("Tone not available");
+// dB 값을 gain 값으로 변환하는 함수 (볼륨 조절용)
+const dbToGain = (db) => Math.pow(10, db / 20);
 
-  await ensureAudioStart();
+export async function createKit({ volume = -6 } = {}) {
+  const Tone = await getTone();
 
-  // 공통 마스터
+  // 모든 소리가 거쳐갈 마스터 볼륨 조절 장치
   const master = new Tone.Gain(dbToGain(volume)).toDestination();
 
-  // ────────────────────────────────────────────────
-  // 1) 샘플 킷 (권장): 아주 깔끔하고 CPU 가벼움
-  // ────────────────────────────────────────────────
-  if (useSamples) {
-    try {
-      const players = new Tone.Players(
-        {
-          kick: SAMPLE_URLS.kick,
-          snare: SAMPLE_URLS.snare,
-          hat: SAMPLE_URLS.hat,
-        },
-        // onload
-        () => {}
-      ).connect(master);
+  // Tone.Players는 여러 오디오 파일을 한 번에 관리하는 편리한 도구입니다.
+  // 우리가 정의한 DRUM_SAMPLES를 통째로 넘겨주면 알아서 다 불러옵니다.
+  const players = new Tone.Players(DRUM_SAMPLES, () => {
+    console.log('✅ 9가지 드럼 샘플이 모두 준비되었습니다!');
+  }).connect(master);
 
-      // 로딩 대기 (Tone v14: loaded() Promise 제공)
-      if (typeof players.loaded === "function") {
-        await players.loaded();
+  // 이제 trigger 함수는 훨씬 간단해집니다.
+  return {
+    trigger(track, time) {
+      // players 객체가 'kick', 'snare' 같은 이름을 가지고 있는지 확인하고,
+      if (players.has(track)) {
+        // 해당 이름의 플레이어를 찾아 재생시킵니다.
+        players.player(track).start(time);
       } else {
-        // 일부 빌드에선 loaded() 없을 수 있음 → 약간 대기
-        await new Promise((r) => setTimeout(r, 250));
+        // 혹시 모를 오류를 방지하기 위해 콘솔에 경고를 남깁니다.
+        console.warn(`'${track}'이라는 이름의 샘플을 찾을 수 없습니다.`);
       }
-
-      function trigger(track, time) {
-        const p = players.player(track);
-        if (!p) return;
-        // 시작: 전체 원샷 길이로 재생(필요시 length를 짧게 줄여도 됨)
-        p.start(time);
-      }
-
-      function setMasterGain(db) {
-        master.gain.value = dbToGain(db);
-      }
-
-      return { trigger, setMasterGain };
-    } catch (e) {
-      console.warn("[SampleKit] sample load failed, falling back to synth.", e);
-      // 아래 신스 폴백으로 계속 진행
-    }
-  }
-
-  // ────────────────────────────────────────────────
-  // 2) 신스 폴백 킷 (샘플 부재/오프라인 대비)
-  // ────────────────────────────────────────────────
-  // 짧은 퍼커시브로 '치지직' 최소화
-  function triggerKick(time) {
-    const osc = new Tone.Oscillator(120, 'sine');
-    const amp = new Tone.Gain(0);
-    osc.connect(amp).connect(master);
-    osc.start(time);
-
-    amp.gain.setValueAtTime(0.001, time);
-    amp.gain.exponentialRampToValueAtTime(0.9, time + 0.004);
-    amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
-
-    osc.frequency.setValueAtTime(120, time);
-    osc.frequency.exponentialRampToValueAtTime(55, time + 0.16);
-
-    osc.stop(time + 0.2);
-    setTimeout(() => { try { osc.dispose(); amp.dispose(); } catch {} }, 260);
-  }
-
-  function triggerSnare(time) {
-    if (Tone.Noise) {
-      const noise = new Tone.Noise('white');
-      const hp = new Tone.Filter(1000, 'highpass');
-      const lp = new Tone.Filter(6500, 'lowpass');
-      const amp = new Tone.Gain(0);
-      noise.connect(hp).connect(lp).connect(amp).connect(master);
-      noise.start(time);
-
-      amp.gain.setValueAtTime(0.001, time);
-      amp.gain.exponentialRampToValueAtTime(0.8, time + 0.003);
-      amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.09);
-
-      noise.stop(time + 0.1);
-      setTimeout(() => { try { noise.dispose(); hp.dispose(); lp.dispose(); amp.dispose(); } catch {} }, 200);
-    }
-  }
-
-  function triggerHat(time) {
-    if (Tone.Noise) {
-      const noise = new Tone.Noise('white');
-      const hp = new Tone.Filter(9000, 'highpass');
-      const amp = new Tone.Gain(0);
-      noise.connect(hp).connect(amp).connect(master);
-      noise.start(time);
-
-      amp.gain.setValueAtTime(0.001, time);
-      amp.gain.exponentialRampToValueAtTime(0.5, time + 0.0015);
-      amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
-
-      noise.stop(time + 0.035);
-      setTimeout(() => { try { noise.dispose(); hp.dispose(); amp.dispose(); } catch {} }, 100);
-    }
-  }
-
-  function trigger(track, time) {
-    if (track === 'kick') return triggerKick(time);
-    if (track === 'snare') return triggerSnare(time);
-    if (track === 'hat') return triggerHat(time);
-  }
-
-  function setMasterGain(db) {
-    master.gain.value = dbToGain(db);
-  }
-
-  return { trigger, setMasterGain };
+    },
+    dispose() {
+      // 뒷정리도 깔끔하게!
+      try { 
+        players.dispose?.(); 
+        master.dispose?.();
+      } catch {}
+    },
+  };
 }
 
 export default createKit;

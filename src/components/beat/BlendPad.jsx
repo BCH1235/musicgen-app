@@ -1,38 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box, Typography, FormControl, Select, MenuItem, Stack,
-  Switch, FormControlLabel, Tooltip, Chip
-} from '@mui/material';
-import { PRESETS, clonePattern } from './presets';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Box, Typography, FormControl, Select, MenuItem, Stack } from '@mui/material';
+import { PRESETS, clonePattern, TRACKS } from './presets';
 import { loadDrumsVAE, encodeCorners, decodeAtPosition } from '../../lib/drumsVAE';
-import { generate4PointGradient, toCSSString } from '../../lib/beatblender/color';
-
-// ── 코너 색 (모듈 레벨 상수: deps 경고 없음) ─────────────────────────────
-const DEFAULT_CORNER_COLORS = {
-  A: [255, 72, 88, 1],    // top-left
-  B: [72, 160, 255, 1],   // top-right
-  C: [88, 232, 160, 1],   // bottom-left
-  D: [255, 216, 88, 1],   // bottom-right
-};
 
 const weights = (x, y) => ({
-  A: (1 - x) * (1 - y),
-  B: x * (1 - y),
-  C: (1 - x) * y,
-  D: x * y,
+  A: (1 - x) * (1 - y), B: x * (1 - y), C: (1 - x) * y, D: x * y,
 });
 
 function blendPatterns(corners, x, y, thresh = 0.5) {
   const w = weights(x, y);
-  const tracks = ['kick', 'snare', 'hat'];
   const out = {};
-  tracks.forEach((t) => {
-    out[t] = Array.from({ length: 16 }, (_, i) => {
-      const v =
-        w.A * (corners.A[t][i] ? 1 : 0) +
-        w.B * (corners.B[t][i] ? 1 : 0) +
-        w.C * (corners.C[t][i] ? 1 : 0) +
-        w.D * (corners.D[t][i] ? 1 : 0);
+  TRACKS.forEach((trackName) => {
+    out[trackName] = Array.from({ length: 16 }, (_, i) => {
+      const valA = corners.A?.[trackName]?.[i] ? 1 : 0;
+      const valB = corners.B?.[trackName]?.[i] ? 1 : 0;
+      const valC = corners.C?.[trackName]?.[i] ? 1 : 0;
+      const valD = corners.D?.[trackName]?.[i] ? 1 : 0;
+      const v = w.A * valA + w.B * valB + w.C * valC + w.D * valD;
       return v >= thresh;
     });
   });
@@ -49,19 +33,15 @@ function useDebouncedCallback(fn, delay = 120) {
 
 export default function BlendPad({ colors, corners, onChangeCorners, onBlend }) {
   const padRef = useRef(null);
-  const canvasRef = useRef(null);
   const [pos, setPos] = useState({ x: 0.2, y: 0.3 });
   const [dragging, setDragging] = useState(false);
-
-  const [sel, setSel] = useState({ A: '', B: '', C: '', D: '' });
+  const [sel, setSel] = useState({ A: 'Rock 1', B: 'Pop Punk', C: 'Reggaeton', D: 'Samba Full Time' });
   const presetNames = useMemo(() => Object.keys(PRESETS), []);
-
-  const [useML, setUseML] = useState(true);
+  
   const [modelReady, setModelReady] = useState(false);
   const [encoded, setEncoded] = useState(null);
   const [decoding, setDecoding] = useState(false);
 
-  // 모델 로딩
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -69,257 +49,110 @@ export default function BlendPad({ colors, corners, onChangeCorners, onBlend }) 
         await loadDrumsVAE();
         if (mounted) setModelReady(true);
       } catch (e) {
-        console.warn('[BlendPad] VAE load failed, fallback to simple blend.', e);
+        console.warn('[BlendPad] VAE 로딩 실패, 단순 블렌딩으로 전환합니다.', e);
         if (mounted) {
           setModelReady(false);
-          setUseML(false);
         }
       }
     })();
     return () => { mounted = false; };
   }, []);
 
-  // 코너 변경 시 인코딩
   useEffect(() => {
+    if (!modelReady) return;
     let cancelled = false;
     (async () => {
-      if (!useML || !modelReady) return;
       try {
         const enc = await encodeCorners(corners);
         if (!cancelled) setEncoded(enc);
       } catch (e) {
-        console.warn('[BlendPad] encode failed, fallback to simple blend.', e);
+        console.warn('[BlendPad] 인코딩 실패, 단순 블렌딩으로 전환합니다.', e);
         if (!cancelled) {
           setEncoded(null);
-          setUseML(false);
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [corners, useML, modelReady]);
+  }, [corners, modelReady]);
 
-  const getXY = (clientX, clientY) => {
+  const getXY = useCallback((clientX, clientY) => {
     const el = padRef.current;
     if (!el) return null;
     const r = el.getBoundingClientRect();
     const x = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
     const y = Math.min(1, Math.max(0, (clientY - r.top) / r.height));
     return { x, y };
-  };
+  }, [padRef]);
 
-  // 디코드 (디바운스)
   const debouncedDecode = useDebouncedCallback(async (p) => {
-    if (!useML || !modelReady || !encoded) return;
+    if (!modelReady || !encoded) return;
     setDecoding(true);
     try {
       const pat = await decodeAtPosition(encoded, p.x, p.y, 0.85);
       onBlend(pat);
     } catch (e) {
-      console.warn('[BlendPad] decode failed, fallback to simple blend.', e);
       onBlend(blendPatterns(corners, p.x, p.y));
     } finally {
       setDecoding(false);
     }
   }, 120);
 
-  const startDrag = (e) => {
+  const handleInteraction = useCallback((e) => {
     const p = getXY(e.clientX, e.clientY);
     if (!p) return;
-    setDragging(true);
     setPos(p);
-    if (useML && modelReady && encoded) debouncedDecode(p);
-    else onBlend(blendPatterns(corners, p.x, p.y));
+    if (modelReady && encoded) {
+      debouncedDecode(p);
+    } else {
+      onBlend(blendPatterns(corners, p.x, p.y));
+    }
+  }, [modelReady, encoded, corners, onBlend, debouncedDecode, getXY]);
+
+  const startDrag = (e) => {
+    setDragging(true);
+    handleInteraction(e);
   };
 
-  // 드래그 리스너
   useEffect(() => {
     const onMove = (e) => {
       if (!dragging) return;
-      const p = getXY(e.clientX, e.clientY);
-      if (!p) return;
-      setPos(p);
-      if (useML && modelReady && encoded) debouncedDecode(p);
-      else onBlend(blendPatterns(corners, p.x, p.y));
+      handleInteraction(e);
     };
     const onUp = () => setDragging(false);
-
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragging, useML, modelReady, encoded, corners, onBlend, debouncedDecode]);
-
-  useEffect(() => () => setDragging(false), []);
+  }, [dragging, handleInteraction]);
 
   const handlePreset = (key, name) => {
     if (!name) return;
-    const next = {
-      A: clonePattern(corners.A),
-      B: clonePattern(corners.B),
-      C: clonePattern(corners.C),
-      D: clonePattern(corners.D),
-    };
-    next[key] = clonePattern(PRESETS[name]);
+    const next = { ...corners, [key]: clonePattern(PRESETS[name]) };
     onChangeCorners(next);
-    setSel((s) => ({ ...s, [key]: '' }));
+    setSel((s) => ({ ...s, [key]: name }));
     const p = pos;
     onBlend(blendPatterns(next, p.x, p.y));
   };
 
-  // ── 캔버스 4-포인트 그라데이션 ──────
-  useEffect(() => {
-    const pad = padRef.current;
-    const canvas = canvasRef.current;
-    if (!pad || !canvas) return;
-
-    const rect = pad.getBoundingClientRect();
-    const w = Math.max(2, Math.floor(rect.width));
-    const h = Math.max(2, Math.floor(rect.height));
-    const ctx = canvas.getContext('2d');
-
-    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const COLS = 56;
-    const ROWS = 56;
-
-    const tl = DEFAULT_CORNER_COLORS.A;
-    const tr = DEFAULT_CORNER_COLORS.B;
-    const bl = DEFAULT_CORNER_COLORS.C;
-    const br = DEFAULT_CORNER_COLORS.D;
-
-    const grid = generate4PointGradient(tl, tr, bl, br, COLS, ROWS);
-    const cw = w / COLS;
-    const ch = h / ROWS;
-
-    for (let x = 0; x < COLS; x++) {
-      for (let y = 0; y < ROWS; y++) {
-        ctx.fillStyle = toCSSString(grid[x][y]);
-        ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
-      }
-    }
-  }, [pos, sel, corners]);
-
-  const Status = () => (
-    <Tooltip
-      title={modelReady ? 'AI가 코너 프리셋을 학습해 중간 지점을 더 음악적으로 보간해요.' : '모델이 준비되면 더 자연스러운 보간이 가능해요.'}
-      arrow
-      placement="right"
-    >
-      <Chip
-        label={modelReady ? 'AI 보간 켜짐' : 'AI 보간 준비 중'}
-        size="small"
-        sx={{
-          ml: 1,
-          bgcolor: modelReady ? 'rgba(70,180,120,.15)' : 'rgba(180,180,180,.12)',
-          color: modelReady ? '#7be1ad' : '#bdbdbd',
-          border: theme => `1px solid ${theme.palette.divider}`,
-          '& .MuiChip-label': { px: .75 }
-        }}
-      />
-    </Tooltip>
-  );
-
   return (
-    <Stack spacing={1.75}>
-      <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff' }}>
-          패드 블렌딩
-        </Typography>
-        <Box sx={{ display:'flex', alignItems:'center' }}>
-          <FormControlLabel
-            control={<Switch checked={useML && modelReady} onChange={(e)=>setUseML(e.target.checked)} />}
-            label=""
-            sx={{ mr: .5 }}
-          />
-          <Status />
-        </Box>
-      </Box>
-
-      <Box
-        ref={padRef}
-        onMouseDown={startDrag}
-        sx={{
-          position: 'relative',
-          width: '100%', aspectRatio: '1 / 1',
-          borderRadius: 2, border: `1px solid ${colors.border}`,
-          overflow: 'hidden', userSelect: 'none', cursor: 'pointer',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.02), 0 8px 24px rgba(0,0,0,.35)'
-        }}
-        title="패드에서 드래그해 프리셋을 섞어보세요"
-        role="application"
-        aria-label="블렌딩 패드"
-      >
-        {/* 캔버스 배경 */}
-        <canvas
-          ref={canvasRef}
-          style={{ position: 'absolute', inset: 0, display: 'block' }}
-          aria-hidden
-        />
-
-        {/* 그리드 오버레이: 더 옅게 */}
-        <Box sx={{
-          position: 'absolute', inset: 0,
-          backgroundImage:
-            'linear-gradient(#0000 96%, rgba(255,255,255,0.035) 96%),' +
-            'linear-gradient(90deg, #0000 96%, rgba(255,255,255,0.035) 96%)',
-          backgroundSize: '20px 20px', pointerEvents: 'none'
-        }} />
-
-        {/* 코너 라벨 */}
+    <Stack spacing={2} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <Box ref={padRef} onMouseDown={startDrag} sx={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', flex: '0 0 auto', borderRadius: 2, border: `1px solid ${colors.border}`, background: 'linear-gradient(to bottom right, #a7b0fb, #e481f8, #a5f9d1, #ccf799)', overflow: 'hidden', userSelect: 'none', cursor: 'pointer', flexShrink: 0 }} title="드래그해서 블렌딩">
+        <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)', backgroundSize: '20px 20px', pointerEvents: 'none' }} />
         <CornerLabel pos="topLeft" label="A" colors={colors} />
         <CornerLabel pos="topRight" label="B" colors={colors} />
         <CornerLabel pos="bottomLeft" label="C" colors={colors} />
         <CornerLabel pos="bottomRight" label="D" colors={colors} />
-
-        {/* puck */}
-        <Box sx={{
-          position: 'absolute', width: 18, height: 18,
-          borderRadius: '50%', border: '2px solid white', background: colors.accent,
-          left: `calc(${pos.x * 100}% - 9px)`, top: `calc(${pos.y * 100}% - 9px)`,
-          boxShadow: `0 0 20px ${colors.shadow}`, pointerEvents: 'none'
-        }} />
-
-        {decoding && (
-          <Box sx={{
-            position:'absolute', right:8, bottom:8,
-            fontSize:12, color: colors.textLight, bgcolor:'rgba(0,0,0,.35)',
-            border:`1px solid ${colors.border}`, borderRadius:1, px:1, py:.25
-          }}>
-            AI 보간 중...
-          </Box>
-        )}
+        <Box sx={{ position: 'absolute', width: 24, height: 24, borderRadius: '50%', border: '2px solid white', background: 'transparent', left: `calc(${pos.x * 100}% - 12px)`, top: `calc(${pos.y * 100}% - 12px)`, boxShadow: dragging ? `0 0 25px rgba(255,255,255,0.8)` : `0 0 15px rgba(0,0,0,0.5)`, transition: 'box-shadow 0.2s ease-in-out', pointerEvents: 'none' }} />
+        {decoding && <Box sx={{ position:'absolute', right:8, bottom:8, fontSize:12, color: colors.text, bgcolor:'rgba(0,0,0,.4)', border:`1px solid ${colors.border}`, borderRadius:1, px:1, py:.25 }}>AI 계산 중...</Box>}
       </Box>
-
-      {/* 코너 프리셋 */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 'auto', minWidth: 0 }}>
         {(['A','B','C','D']).map((k) => (
-          <FormControl key={k} size="small" sx={{ bgcolor:'#101010', borderRadius: 1.25, px: .5, py: .4 }}>
-            <Typography sx={{ color: colors.textLight, fontSize: 12, mb: .5, mx: .5 }}>
-              Corner {k}
-            </Typography>
-            <Select
-              aria-label={`코너 ${k} 프리셋 선택`}
-              value={sel[k]}
-              displayEmpty
-              renderValue={() => '프리셋 선택'}
-              onChange={(e)=> handlePreset(k, e.target.value)}
-              sx={{
-                color:'#fff',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
-              }}
-              MenuProps={{ PaperProps: { sx: { bgcolor:'#0f0f0f', color:'#fff' } } }}
-            >
-              {presetNames.map((name) => (
-                <MenuItem key={name} value={name}>{name}</MenuItem>
-              ))}
+          <FormControl key={k} fullWidth variant="filled" size="small" sx={{ bgcolor: '#222', borderRadius: 1, minWidth: 0 }}>
+            <Typography sx={{ color: colors.textLight, fontSize: 12, mb: .5, mx: 1, mt: 1 }}>Corner {k}</Typography>
+            <Select value={sel[k] || ''} onChange={(e) => handlePreset(k, e.target.value)} renderValue={(selectedValue) => (<Typography noWrap sx={{ color: colors.text }}>{selectedValue || 'Preset 선택'}</Typography>)} displayEmpty fullWidth sx={{ color: colors.text, minWidth: 0, '& .MuiSelect-icon': { color: colors.textLight }, '.MuiFilledInput-input': { py: 1.5 }, '& .MuiSelect-select': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }} MenuProps={{ PaperProps: { sx: { bgcolor: '#333', color: colors.text } } }}>
+              {presetNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
             </Select>
           </FormControl>
         ))}
@@ -329,15 +162,7 @@ export default function BlendPad({ colors, corners, onChangeCorners, onBlend }) 
 }
 
 function CornerLabel({ pos, label, colors }) {
-  const style = {
-    position: 'absolute', color: colors.textLight, fontSize: 12,
-    px: .75, py: .25, borderRadius: 1, bgcolor: 'rgba(0,0,0,.35)', border: `1px solid ${colors.border}`
-  };
-  const map = {
-    topLeft: { left: 8, top: 6 },
-    topRight: { right: 8, top: 6 },
-    bottomLeft: { left: 8, bottom: 6 },
-    bottomRight: { right: 8, bottom: 6 },
-  };
+  const style = { position: 'absolute', color: colors.text, fontSize: 14, fontWeight: 'bold', px: 1, py: .25, borderRadius: 1, bgcolor: 'rgba(0,0,0,.35)', border: `1px solid rgba(255,255,255,0.2)` };
+  const map = { topLeft: { left: 12, top: 10 }, topRight: { right: 12, top: 10 }, bottomLeft: { left: 12, bottom: 10 }, bottomRight: { right: 12, bottom: 10 } };
   return <Box sx={{ ...style, ...map[pos] }}>{label}</Box>;
 }
