@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Container, Grid, Paper, Typography } from '@mui/material';
+import { Box, Container, Paper, Typography } from '@mui/material';
 import MusicNote from '@mui/icons-material/MusicNote';
 import { useNavigate } from 'react-router-dom';
 
@@ -197,8 +197,16 @@ export default function MusicConversion() {
           <MusicNote sx={{ mr: 1, color: colorsMemo.primary }} />
           비트 만들기
         </Typography>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6} sx={{ minWidth: 0 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: { xs: 3, md: 4 },
+            alignItems: 'stretch',
+            flexWrap: { xs: 'wrap', md: 'nowrap' },
+          }}
+        >
+          <Box sx={{ flex: { xs: '1 1 100%', md: '0 1 420px', lg: '0 1 460px' }, minWidth: 0 }}>
             <Paper
               elevation={0}
               sx={{
@@ -217,8 +225,8 @@ export default function MusicConversion() {
                 onBlend={setPattern}
               />
             </Paper>
-          </Grid>
-          <Grid item xs={12} md={6} sx={{ minWidth: 0 }}>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 0%' }, minWidth: 0 }}>
             <Paper
               elevation={0}
               sx={{ bgcolor: colorsMemo.cardBg, p: 3, borderRadius: 3, border: `1px solid ${colorsMemo.border}` }}
@@ -237,8 +245,8 @@ export default function MusicConversion() {
                 팁: 패드의 위치를 바꾸면 4개 코너 프리셋을 섞어 새 패턴이 만들어져요. 그리드에서 직접 찍어도 됩니다.
               </Typography>
             </Paper>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Container>
     </Box>
   );
