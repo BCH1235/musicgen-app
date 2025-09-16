@@ -1,4 +1,14 @@
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+} from 'firebase/auth';
+import { subscribeToUserLibrary } from '../services/libraryApi';
+
+import { auth as firebaseAuth } from '../lib/firebase';
 
 // 초기 상태 정의
 const initialState = {
@@ -30,12 +40,21 @@ const initialState = {
     duration: 0,
   },
   
+  // 인증 상태
+  auth: {
+    user: null,
+    status: 'idle', // idle | loading | authenticated | unauthenticated | error
+    error: null,
+  },
+  
   // 라이브러리 관련 상태
   library: {
     musicList: [],
     selectedMusic: null,
     sortBy: 'date', // 'date', 'genre', 'favorites'
     filterBy: 'all', // 'all', 'generated', 'converted'
+    loading: false,
+    error: null,
   },
   
   // UI 상태
@@ -74,6 +93,10 @@ const actionTypes = {
   // 라이브러리 액션
   ADD_TO_LIBRARY: 'ADD_TO_LIBRARY',
   REMOVE_FROM_LIBRARY: 'REMOVE_FROM_LIBRARY',
+  SET_LIBRARY_ITEMS: 'SET_LIBRARY_ITEMS',
+  SET_LIBRARY_LOADING: 'SET_LIBRARY_LOADING',
+  SET_LIBRARY_ERROR: 'SET_LIBRARY_ERROR',
+  CLEAR_LIBRARY: 'CLEAR_LIBRARY',
   UPDATE_LIBRARY_SORT: 'UPDATE_LIBRARY_SORT',
   UPDATE_LIBRARY_FILTER: 'UPDATE_LIBRARY_FILTER',
   
@@ -84,6 +107,11 @@ const actionTypes = {
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
+
+  // 인증 액션
+  AUTH_SET_STATUS: 'AUTH_SET_STATUS',
+  AUTH_STATE_CHANGE: 'AUTH_STATE_CHANGE',
+  AUTH_SET_ERROR: 'AUTH_SET_ERROR',
 };
 
 // 리듀서 함수
@@ -259,7 +287,48 @@ function musicReducer(state, action) {
           musicList: [...state.library.musicList, action.payload]
         }
       };
-    
+
+    case actionTypes.SET_LIBRARY_ITEMS:
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          musicList: action.payload,
+          loading: false,
+          error: null,
+        },
+      };
+
+    case actionTypes.SET_LIBRARY_LOADING:
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          loading: action.payload,
+        },
+      };
+
+    case actionTypes.SET_LIBRARY_ERROR:
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          error: action.payload,
+          loading: false,
+        },
+      };
+
+    case actionTypes.CLEAR_LIBRARY:
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          musicList: [],
+          loading: false,
+          error: null,
+        },
+      };
+
     // UI 관련
     case actionTypes.SET_CURRENT_PAGE:
       return {
@@ -308,7 +377,37 @@ function musicReducer(state, action) {
           error: null
         }
       };
-    
+
+    // 인증 관련
+    case actionTypes.AUTH_SET_STATUS:
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          status: action.payload,
+        },
+      };
+
+    case actionTypes.AUTH_STATE_CHANGE:
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          user: action.payload,
+          status: action.payload ? 'authenticated' : 'unauthenticated',
+          error: null,
+        },
+      };
+
+    case actionTypes.AUTH_SET_ERROR:
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          error: action.payload,
+        },
+      };
+
     default:
       return state;
   }
@@ -320,6 +419,13 @@ const MusicContext = createContext();
 // Context Provider 컴포넌트
 export function MusicContextProvider({ children }) {
   const [state, dispatch] = useReducer(musicReducer, initialState);
+  const pushNotification = useCallback((notification) => {
+    const notificationWithId = {
+      ...notification,
+      id: Date.now() + Math.random(),
+    };
+    dispatch({ type: actionTypes.ADD_NOTIFICATION, payload: notificationWithId });
+  }, [dispatch]);
   
   // 액션 크리에이터들을 useCallback으로 메모이제이션
   const actions = {
@@ -386,19 +492,83 @@ export function MusicContextProvider({ children }) {
     addToLibrary: useCallback((musicData) => {
       dispatch({ type: actionTypes.ADD_TO_LIBRARY, payload: musicData });
     }, []),
-    
+
+    setLibraryItems: useCallback((items) => {
+      dispatch({ type: actionTypes.SET_LIBRARY_ITEMS, payload: items });
+    }, [dispatch]),
+
+    setLibraryLoading: useCallback((flag) => {
+      dispatch({ type: actionTypes.SET_LIBRARY_LOADING, payload: flag });
+    }, [dispatch]),
+
+    setLibraryError: useCallback((error) => {
+      dispatch({ type: actionTypes.SET_LIBRARY_ERROR, payload: error });
+    }, [dispatch]),
+
+    // 인증 관련 액션들
+    setAuthStatus: useCallback((status) => {
+      dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: status });
+    }, []),
+
+    setAuthError: useCallback((error) => {
+      dispatch({ type: actionTypes.AUTH_SET_ERROR, payload: error });
+    }, []),
+
+    signUpWithEmail: useCallback(async ({ email, password, displayName }) => {
+      dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'loading' });
+      try {
+        const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        if (displayName) {
+          await updateProfile(cred.user, { displayName });
+        }
+        pushNotification({ type: 'success', message: '회원가입이 완료되었어요!' });
+        return cred.user;
+      } catch (error) {
+        const message = error?.message || '회원가입에 실패했어요.';
+        dispatch({ type: actionTypes.AUTH_SET_ERROR, payload: message });
+        dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'unauthenticated' });
+        pushNotification({ type: 'error', message });
+        throw error;
+      }
+    }, [pushNotification]),
+
+    signInWithEmail: useCallback(async ({ email, password }) => {
+      dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'loading' });
+      try {
+        const cred = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        pushNotification({ type: 'success', message: '환영합니다! 로그인에 성공했어요.' });
+        return cred.user;
+      } catch (error) {
+        const message = error?.message || '로그인에 실패했어요.';
+        dispatch({ type: actionTypes.AUTH_SET_ERROR, payload: message });
+        dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'unauthenticated' });
+        pushNotification({ type: 'error', message });
+        throw error;
+      }
+    }, [pushNotification]),
+
+    signOut: useCallback(async () => {
+      dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'loading' });
+      try {
+        await firebaseSignOut(firebaseAuth);
+        pushNotification({ type: 'info', message: '로그아웃되었어요.' });
+      } catch (error) {
+        const message = error?.message || '로그아웃 중 문제가 발생했어요.';
+        dispatch({ type: actionTypes.AUTH_SET_ERROR, payload: message });
+        dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'error' });
+        pushNotification({ type: 'error', message });
+        throw error;
+      }
+    }, [pushNotification]),
+
     // UI 관련 액션들
     setCurrentPage: useCallback((page) => {
       dispatch({ type: actionTypes.SET_CURRENT_PAGE, payload: page });
     }, []),
     
     addNotification: useCallback((notification) => {
-      const notificationWithId = {
-        ...notification,
-        id: Date.now() + Math.random()
-      };
-      dispatch({ type: actionTypes.ADD_NOTIFICATION, payload: notificationWithId });
-    }, []),
+      pushNotification(notification);
+    }, [pushNotification]),
     
     removeNotification: useCallback((id) => {
       dispatch({ type: actionTypes.REMOVE_NOTIFICATION, payload: id });
@@ -418,7 +588,62 @@ export function MusicContextProvider({ children }) {
     actions,
     dispatch
   };
-  
+
+  useEffect(() => {
+    // 초기 로딩 상태를 표시하고 Firebase Auth 상태 변화를 구독
+    dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'loading' });
+    const unsubscribe = onAuthStateChanged(
+      firebaseAuth,
+      (firebaseUser) => {
+        if (firebaseUser) {
+          const { uid, displayName, email, photoURL } = firebaseUser;
+          dispatch({
+            type: actionTypes.AUTH_STATE_CHANGE,
+            payload: { uid, displayName, email, photoURL },
+          });
+        } else {
+          dispatch({ type: actionTypes.AUTH_STATE_CHANGE, payload: null });
+        }
+      },
+      (error) => {
+        dispatch({
+          type: actionTypes.AUTH_SET_ERROR,
+          payload: error?.message || 'Authentication error',
+        });
+        dispatch({ type: actionTypes.AUTH_SET_STATUS, payload: 'error' });
+      }
+    );
+
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  useEffect(() => {
+    let unsubscribeLibrary = null;
+    const userId = state.auth.user?.uid;
+
+    if (userId) {
+      dispatch({ type: actionTypes.SET_LIBRARY_LOADING, payload: true });
+      unsubscribeLibrary = subscribeToUserLibrary(userId, {
+        onUpdate: (items) => {
+          dispatch({ type: actionTypes.SET_LIBRARY_ITEMS, payload: items });
+        },
+        onError: (error) => {
+          dispatch({
+            type: actionTypes.SET_LIBRARY_ERROR,
+            payload: error?.message || '라이브러리를 불러오지 못했어요.',
+          });
+          pushNotification({ type: 'error', message: '라이브러리 데이터를 불러오지 못했어요.' });
+        },
+      });
+    } else {
+      dispatch({ type: actionTypes.CLEAR_LIBRARY });
+    }
+
+    return () => {
+      unsubscribeLibrary?.();
+    };
+  }, [state.auth.user?.uid, pushNotification, dispatch]);
+
   return (
     <MusicContext.Provider value={value}>
       {children}

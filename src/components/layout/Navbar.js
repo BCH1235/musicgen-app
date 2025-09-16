@@ -14,6 +14,8 @@ import { Menu } from '@mui/icons-material';
 // 사용하지 않는 useLocation을 제거했습니다.
 import { useNavigate } from 'react-router-dom';
 
+import { useMusicContext } from '../../context/MusicContext';
+
 // 검은색 배경에 에메랄드 테마
 const colors = {
   background: '#0A0A0A',         // 검은색 배경
@@ -29,9 +31,20 @@ const colors = {
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const { state, actions } = useMusicContext();
+  const auth = state.auth;
+  const isAuthed = Boolean(auth.user);
 
   const handleNavigation = (path) => {
     navigate(path);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await actions.signOut();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -130,8 +143,53 @@ const Navbar = () => {
             </Button>
           </Box>
 
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
+            {isAuthed ? (
+              <>
+                <Typography sx={{ color: colors.textLight, fontWeight: 500 }}>
+                  {auth.user.displayName || auth.user.email}
+                </Typography>
+                <Button
+                  onClick={handleSignOut}
+                  sx={{
+                    color: '#041311',
+                    bgcolor: colors.accent,
+                    px: 3,
+                    py: 1,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: '#26b8a4'
+                    }
+                  }}
+                >
+                  로그아웃
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={() => handleNavigation('/auth')}
+                sx={{
+                  color: '#041311',
+                  bgcolor: colors.accent,
+                  px: 3,
+                  py: 1,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: '#26b8a4'
+                  }
+                }}
+              >
+                로그인
+              </Button>
+            )}
+          </Box>
+
           {/* 모바일 메뉴 버튼 */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1 }}>
             <IconButton
               size="large"
               sx={{
@@ -144,6 +202,43 @@ const Navbar = () => {
             >
               <Menu />
             </IconButton>
+            {isAuthed ? (
+              <Button
+                onClick={handleSignOut}
+                size="small"
+                sx={{
+                  color: '#041311',
+                  bgcolor: colors.accent,
+                  px: 2,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: '#26b8a4'
+                  }
+                }}
+              >
+                로그아웃
+              </Button>
+            ) : (
+              <Button
+                onClick={() => handleNavigation('/auth')}
+                size="small"
+                sx={{
+                  color: '#041311',
+                  bgcolor: colors.accent,
+                  px: 2,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: '#26b8a4'
+                  }
+                }}
+              >
+                로그인
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </Container>

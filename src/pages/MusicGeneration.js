@@ -11,6 +11,7 @@ import MoodSelector from '../components/common/MoodSelector';
 import { useMusicContext } from '../context/MusicContext';
 
 import { generateAndWait } from '../services/musicApi';
+import { saveGeneratedTrack } from '../services/libraryWriter';
 
 const MusicGeneration = () => {
   const navigate = useNavigate();
@@ -126,7 +127,28 @@ const MusicGeneration = () => {
       };
 
       actions.completeGeneration(generatedMusic);
-      actions.addNotification({ type: 'success', message: '음악이 성공적으로 생성되었습니다!' });
+
+      const currentUser = state.auth.user;
+      if (currentUser) {
+        try {
+          await saveGeneratedTrack({
+            ownerId: currentUser.uid,
+            title: generatedMusic.title,
+            genres: selectedGenres,
+            moods: selectedMoods,
+            description: prompt,
+            durationSec: dur,
+            prompt,
+            sourceUrl: final.result.audioUrl,
+          });
+          actions.addNotification({ type: 'success', message: '음악이 생성되어 라이브러리에 저장되었습니다!' });
+        } catch (writeError) {
+          console.warn(writeError);
+          actions.addNotification({ type: 'warning', message: '생성은 완료했지만 라이브러리에 저장하지 못했습니다.' });
+        }
+      } else {
+        actions.addNotification({ type: 'success', message: '음악이 성공적으로 생성되었습니다! 로그인하면 라이브러리에 저장돼요.' });
+      }
       navigate('/result');
     } catch (error) {
       console.error(error);

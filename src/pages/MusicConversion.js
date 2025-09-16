@@ -10,6 +10,8 @@ import { createKit } from '../components/beat/SampleKit';
 import { PRESETS, clonePattern, TRACKS } from '../components/beat/presets';
 import { downloadBlob } from '../utils/audioExport';
 import { getTone, ensureAudioStart } from '../lib/toneCompat';
+import { useMusicContext } from '../context/MusicContext';
+import { saveBeatItem } from '../services/libraryWriter';
 
 const colors = {
   background: '#0A0A0A',
@@ -34,6 +36,7 @@ const blobToDataURL = (blob) =>
 
 export default function MusicConversion() {
   const navigate = useNavigate();
+  const { state, actions } = useMusicContext();
   const [pattern, setPattern] = useState(clonePattern(PRESETS['Four on the floor']));
   const [currentStep, setCurrentStep] = useState(-1);
   const [bpm, setBpm] = useState(96);
@@ -159,14 +162,48 @@ export default function MusicConversion() {
     return wavBlob;
   };
 
+  const saveBeatToLibrary = async (wavBlob, titleHint) => {
+    const user = state.auth.user;
+    if (!wavBlob || !user) return false;
+    try {
+      const title = `${titleHint || 'My Beat'}_${bpm}bpm_${Date.now()}`;
+      await saveBeatItem({
+        ownerId: user.uid,
+        title,
+        bpm,
+        bars,
+        pattern,
+        audioBlob: wavBlob,
+        presetMeta: null,
+      });
+      actions.addNotification({ type: 'success', message: '비트가 라이브러리에 저장되었습니다!' });
+      return true;
+    } catch (error) {
+      console.warn('[MusicConversion] save beat error', error);
+      actions.addNotification({ type: 'warning', message: '비트를 저장하지는 못했지만 파일은 준비되었어요.' });
+      return false;
+    }
+  };
+
   const exportWav = async () => {
     const wavBlob = await renderBeatToWavBlob();
-    if (wavBlob) downloadBlob(wavBlob, `my-beat-${bpm}bpm-${bars}bars.wav`);
+    if (!wavBlob) return;
+    const user = state.auth.user;
+    if (user) {
+      await saveBeatToLibrary(wavBlob, 'Beat');
+    } else {
+      actions.addNotification({ type: 'info', message: '로그인하면 만든 비트를 라이브러리에 저장할 수 있어요.' });
+    }
+    downloadBlob(wavBlob, `my-beat-${bpm}bpm-${bars}bars.wav`);
   };
 
   const sendToGenerate = async () => {
     const wavBlob = await renderBeatToWavBlob();
     if (wavBlob) {
+      const user = state.auth.user;
+      if (user) {
+        await saveBeatToLibrary(wavBlob, 'Beat');
+      }
       setBusy(true);
       setBusyMsg('보내는 중...');
       const dataUrl = await blobToDataURL(wavBlob);

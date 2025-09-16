@@ -16,11 +16,10 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
-  // 변경점: 사용하지 않는 Alert 제거
+  InputLabel,
+  CircularProgress,
 } from '@mui/material';
-import {
-  // 변경점: 사용하지 않는 LibraryMusic, Sort, FilterList 제거
+import { 
   Search,
   PlayArrow,
   Download,
@@ -38,44 +37,7 @@ const Library = () => {
   const [sortBy, setSortBy] = React.useState('date');
   const [filterBy, setFilterBy] = React.useState('all');
 
-  const { musicList } = state.library;
-
-  // 더미 데이터 (실제로는 서버에서 가져옴)
-  const dummyMusicList = [
-    {
-      id: 1,
-      title: 'AI_Generated_LoFi_001',
-      genres: ['lofi'],
-      moods: ['calm', 'focused'],
-      duration: 120,
-      createdAt: '2024-01-15T10:30:00Z',
-      type: 'generated',
-      isFavorite: true
-    },
-    {
-      id: 2,
-      title: 'Converted_Jazz_Mix',
-      targetGenre: 'jazz',
-      originalFile: 'original_song.mp3',
-      duration: 180,
-      createdAt: '2024-01-14T15:20:00Z',
-      type: 'converted',
-      isFavorite: false
-    },
-    {
-      id: 3,
-      title: 'AI_Generated_EDM_002',
-      genres: ['edm'],
-      moods: ['energetic', 'uplifting'],
-      duration: 240,
-      createdAt: '2024-01-13T09:15:00Z',
-      type: 'generated',
-      isFavorite: true
-    }
-  ];
-
-  // 실제 리스트와 더미 데이터 합치기
-  const allMusic = [...musicList, ...dummyMusicList];
+  const { musicList, loading, error } = state.library;
 
   // 장르 정보 가져오기
   const getGenreInfo = (genreId) => {
@@ -90,7 +52,18 @@ const Library = () => {
   };
 
   // 필터링 및 정렬된 음악 리스트
-  const filteredAndSortedMusic = allMusic
+  const getCreatedAt = (item) => {
+    if (!item?.createdAt) return 0;
+    if (typeof item.createdAt === 'string') {
+      return new Date(item.createdAt).getTime() || 0;
+    }
+    if (item.createdAt?.toMillis) {
+      return item.createdAt.toMillis();
+    }
+    return Number(item.createdAt) || 0;
+  };
+
+  const filteredAndSortedMusic = musicList
     .filter((music) => {
       // 검색 필터
       if (searchQuery && !music.title.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -107,7 +80,7 @@ const Library = () => {
     .sort((a, b) => {
       switch (sortBy) {
         case 'date':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return getCreatedAt(b) - getCreatedAt(a);
         case 'title':
           return a.title.localeCompare(b.title);
         case 'duration':
@@ -344,14 +317,30 @@ const Library = () => {
         </Paper>
 
         {/* 음악 리스트 */}
-        {filteredAndSortedMusic.length === 0 ? (
+        {loading ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <CircularProgress sx={{ color: colors.accent }} />
+            <Typography variant="body1" color={colors.textLight} sx={{ mt: 2 }}>
+              라이브러리를 불러오는 중이에요...
+            </Typography>
+          </Box>
+        ) : error ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="h5" color="#FCA5A5" sx={{ mb: 1 }}>
+              데이터를 불러오지 못했어요
+            </Typography>
+            <Typography variant="body1" color={colors.textLight}>
+              잠시 후 다시 시도해주세요.
+            </Typography>
+          </Box>
+        ) : filteredAndSortedMusic.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <MusicNote sx={{ fontSize: '4rem', color: colors.textLight, mb: 2 }} />
             <Typography variant="h5" color={colors.textLight} sx={{ mb: 1 }}>
-              음악이 없습니다
+              저장된 곡이 아직 없어요
             </Typography>
             <Typography variant="body1" color={colors.textLight}>
-              AI로 음악을 생성하거나 기존 음악을 변환해보세요!
+              음악을 생성하거나 비트를 만들어 저장해보세요!
             </Typography>
           </Box>
         ) : (

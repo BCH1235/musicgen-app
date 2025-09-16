@@ -10,6 +10,8 @@ import MusicGeneration from './pages/MusicGeneration';
 import MusicConversion from './pages/MusicConversion';
 import ResultPage from './pages/ResultPage';
 import Library from './pages/Library';
+import AuthPage from './pages/Auth';
+import RequireAuth from './components/common/RequireAuth';
 import { MusicContextProvider } from './context/MusicContext';
 
 // Material-UI 테마 설정
@@ -83,7 +85,15 @@ function App() {
                 <Route path="/generate" element={<MusicGeneration />} />
                 <Route path="/convert" element={<MusicConversion />} />
                 <Route path="/result" element={<ResultPage />} />
-                <Route path="/library" element={<Library />} />
+                <Route
+                  path="/library"
+                  element={(
+                    <RequireAuth>
+                      <Library />
+                    </RequireAuth>
+                  )}
+                />
+                <Route path="/auth" element={<AuthPage />} />
               </Routes>
             </Box>
           </Box>
